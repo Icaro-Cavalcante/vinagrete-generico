@@ -1,8 +1,10 @@
 import os
 from datetime import datetime
+
 import cv2
-from .detector import YOLOInference
+
 from .camera import CameraController
+from .detector import YOLOInference
 
 
 class InspectionPipeline:

@@ -1,7 +1,9 @@
 from dataclasses import dataclass
 from typing import List
+
 import numpy as np
 from ultralytics import YOLO
+
 
 @dataclass
 class DetectionResult:
