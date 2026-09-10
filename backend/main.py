@@ -5,15 +5,22 @@ Execução:
     uvicorn main:app --reload --port 8000
 """
 
-from fastapi import Depends, FastAPI, HTTPException
+import os
+import uuid
+from typing import Optional
+
+from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
 from crud import (
+    UPLOAD_DIR,
     encerrar_lote,
     iniciar_lote,
     obter_dashboard_summary,
     registrar_inspecao,
+    registrar_inspecao_com_dados,
 )
 from database import Base, engine, get_db
 from schemas import (
@@ -37,6 +44,10 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# Servir pasta de uploads de imagens de defeitos
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+
 # ──────────────────────────────────────
 # CORS — permite todas as origens
 # ──────────────────────────────────────
@@ -50,15 +61,44 @@ app.add_middleware(
 
 
 # ──────────────────────────────────────
-# Rotas — Ingestão de dados
+# Rotas — Ingestão de dados (Raspberry Pi / Visão)
 # ──────────────────────────────────────
 @app.post("/api/inspecao/registrar", response_model=MensagemOut)
 def rota_registrar_inspecao(
     payload: InspecaoRegistrar,
     db: Session = Depends(get_db),
 ):
-    """Registra o resultado da inspeção de uma carta (chamado pela câmera/robô)."""
+    """Registra inspeção via JSON (suporta imagem em Base64, URL ou caminho)."""
     resultado = registrar_inspecao(db, payload)
+    return MensagemOut(mensagem=resultado["mensagem"])
+
+
+@app.post("/api/inspecao/registrar-com-foto", response_model=MensagemOut)
+async def rota_registrar_inspecao_com_foto(
+    possui_defeito: bool = Form(...),
+    tipo_defeito: Optional[str] = Form(None),
+    grau_confiabilidade: Optional[float] = Form(None),
+    foto: Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db),
+):
+    """Registra inspeção recebendo arquivo de imagem diretamente (multipart/form-data)."""
+    imagem_url = None
+    if foto and foto.filename:
+        ext = foto.filename.split(".")[-1] if "." in foto.filename else "jpg"
+        filename = f"defeito_{uuid.uuid4().hex[:8]}.{ext}"
+        filepath = os.path.join(UPLOAD_DIR, filename)
+        conteudo = await foto.read()
+        with open(filepath, "wb") as f:
+            f.write(conteudo)
+        imagem_url = f"/uploads/{filename}"
+
+    resultado = registrar_inspecao_com_dados(
+        db=db,
+        possui_defeito=possui_defeito,
+        tipo_defeito=tipo_defeito,
+        grau_confiabilidade=grau_confiabilidade,
+        imagem=imagem_url,
+    )
     return MensagemOut(mensagem=resultado["mensagem"])
 
 
