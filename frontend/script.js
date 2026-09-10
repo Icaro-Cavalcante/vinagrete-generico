@@ -1,5 +1,7 @@
 // Configuração da URL da API Backend FastAPI
-const API_BASE_URL = "http://localhost:8000/api";
+const API_BASE_URL = window.location.port === "80" || window.location.port === ""
+  ? "/api"
+  : "http://localhost:8000/api";
 
 // Estado Global da Aplicação
 let chartInstance = null;

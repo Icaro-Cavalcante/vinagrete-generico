@@ -1,0 +1,23 @@
+services:
+  backend:
+    build: ./backend
+    container_name: vinagrete-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - db-data:/app
+    environment:
+      - DATABASE_URL=sqlite:///./vinagrete.db
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: vinagrete-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  db-data:
