@@ -1,0 +1,15 @@
+# Core do Módulo de Inferência e Visão
+ultralytics>=8.0.0
+opencv-python-headless>=4.8.0
+numpy>=1.24.0
+
+# Versionamento de Artefatos/Modelos
+dvc>=3.0.0
+
+# Comunicação UART (ESP32-S3) e Banco de Dados
+pyserial>=3.5
+sqlalchemy>=2.0.0
+
+# Servidor e Dashboard (Raspberry Pi 5)
+fastapi>=0.100.0
+uvicorn[standard]>=0.22.0
