@@ -3,6 +3,31 @@ const API_BASE_URL = window.location.port === "80" || window.location.port === "
   ? "/api"
   : "http://localhost:8000/api";
 
+// Dicionário de Tradução das Classes do Modelo de Visão Computacional
+const DEFEITOS_TRADUCAO = {
+  "Scratch": "Risco / Arranhão",
+  "Damage": "Dano na Superfície",
+  "Hole": "Furo / Perfuração",
+  "Corner": "Canto Irregular",
+  "Crease": "Vinco / Dobra",
+  "Damaged Corner": "Canto Danificado",
+  "Edge Wear": "Desgaste de Borda",
+  "Heavy Wear": "Desgaste Severo",
+  "Tear": "Rasgo",
+  // Compatibilidade com termos em português anteriores
+  "Corte Desalinhado (Miscut)": "Corte Desalinhado",
+  "Risco na Superfície": "Risco na Superfície",
+  "Mancha de Tinta": "Mancha de Tinta",
+  "Impressão Borrada": "Impressão Borrada",
+  "Bordas Irregulares": "Desgaste de Borda",
+  "Cor Fora do Padrão": "Cor Fora do Padrão",
+};
+
+function traduzirDefeito(tipo) {
+  if (!tipo) return "Defeito Indefinido";
+  return DEFEITOS_TRADUCAO[tipo] || tipo;
+}
+
 // Estado Global da Aplicação
 let chartInstance = null;
 let currentLoteId = null;
@@ -158,15 +183,18 @@ function updateDefectsFeedUI(defects) {
     const timeFormatted = new Date(defect.timestamp).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     const confPercent = (defect.grau_confiabilidade * 100).toFixed(0);
 
+    const nomeTraduzido = traduzirDefeito(defect.tipo_defeito);
+
     const cardHtml = `
       <div class="bg-slate-900 border border-slate-700/60 rounded-lg overflow-hidden group hover:border-slate-500 transition">
         <div class="relative h-28 bg-slate-950 flex items-center justify-center overflow-hidden">
-          <img src="${defect.imagem}" alt="${defect.tipo_defeito}" class="object-cover w-full h-full group-hover:scale-105 transition duration-300" onerror="this.src='https://placehold.co/300x200/0f172a/94a3b8?text=Sem+Imagem'">
+          <img src="${defect.imagem}" alt="${nomeTraduzido}" class="object-cover w-full h-full group-hover:scale-105 transition duration-300" onerror="this.src='https://placehold.co/300x200/0f172a/94a3b8?text=Sem+Imagem'">
           <span class="absolute top-2 right-2 badge-confidence">${confPercent}% Conf.</span>
         </div>
         <div class="p-2.5">
           <div class="flex items-center justify-between mb-1">
-            <span class="text-xs font-bold text-rose-400 truncate">${defect.tipo_defeito}</span>
+            <span class="text-xs font-bold text-rose-400 truncate" title="${defect.tipo_defeito}">${nomeTraduzido}</span>
+            <span class="text-[10px] text-slate-400 font-mono bg-slate-800 px-1 py-0.5 rounded border border-slate-700">${defect.tipo_defeito}</span>
           </div>
           <div class="flex items-center justify-between text-[11px] text-slate-400">
             <span>Lote #${defect.id_lote}</span>

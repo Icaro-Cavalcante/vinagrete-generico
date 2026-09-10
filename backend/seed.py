@@ -12,12 +12,15 @@ from database import Base, SessionLocal, engine
 from models import Defeito, Lote, SistemaEstado
 
 TIPOS_DEFEITO = [
-    "Corte Desalinhado (Miscut)",
-    "Risco na Superfície",
-    "Mancha de Tinta",
-    "Impressão Borrada",
-    "Bordas Irregulares",
-    "Cor Fora do Padrão",
+    "Scratch",
+    "Damage",
+    "Hole",
+    "Corner",
+    "Crease",
+    "Damaged Corner",
+    "Edge Wear",
+    "Heavy Wear",
+    "Tear",
 ]
 
 
