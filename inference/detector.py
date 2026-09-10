@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import List
 
 import numpy as np
 from ultralytics import YOLO
@@ -8,7 +7,7 @@ from ultralytics import YOLO
 @dataclass
 class DetectionResult:
     is_conforme: bool
-    defects: List[str]
+    defects: list[str]
     max_confidence: float
     annotated_image: np.ndarray
 
