@@ -30,8 +30,7 @@ class YOLOInference:
 
             if class_name in self.defect_classes:
                 defects_found.append(class_name)
-                if conf > max_conf:
-                    max_conf = conf
+                max_conf = max(max_conf, conf)
 
         is_conforme = len(defects_found) == 0
         annotated_img = results.plot()
