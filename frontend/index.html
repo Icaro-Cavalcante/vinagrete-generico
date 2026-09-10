@@ -1,0 +1,189 @@
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel de Inspeção - Visão Computacional</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- CSS Personalizado -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans antialiased">
+
+  <!-- BARRA SUPERIOR / CABEÇALHO -->
+  <header class="bg-slate-800/80 backdrop-blur border-b border-slate-700/60 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="p-2 bg-indigo-600/20 text-indigo-400 rounded-lg border border-indigo-500/30">
+          <i data-lucide="scan"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold tracking-wide">Sistema de Visão Industrial</h1>
+          <p class="text-xs text-slate-400" id="header-lote-info">Lote Ativo: <span class="font-semibold text-indigo-400" id="lote-id-display">--</span></p>
+        </div>
+      </div>
+
+      <!-- Ações do Lote e Status da Conexão -->
+      <div class="flex items-center space-x-3">
+        <button id="btn-toggle-lote" onclick="toggleLote()" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm">
+          <i data-lucide="play" id="icon-lote-btn" class="w-4 h-4"></i>
+          <span id="text-lote-btn">Iniciar Lote</span>
+        </button>
+
+        <div class="flex items-center space-x-2 bg-slate-950/50 px-3 py-1.5 rounded-full border border-slate-700/50">
+          <span id="status-indicator" class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span id="status-text" class="text-xs text-slate-300 font-medium">Online</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- CONTEÚDO PRINCIPAL -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
+
+    <!-- ALERTA DE SEQUÊNCIA CRÍTICA (Exibido dinamicamente se a sequência for alta) -->
+    <div id="alert-sequence" class="hidden bg-rose-500/10 border border-rose-500/30 text-rose-300 px-4 py-3 rounded-xl flex items-center gap-3">
+      <i data-lucide="alert-triangle" class="w-5 h-5 text-rose-400 shrink-0"></i>
+      <div>
+        <p class="text-sm font-semibold">Alerta de Sequência de Falhas!</p>
+        <p class="text-xs text-rose-300/80"><span id="alert-seq-count">0</span> cartas defeituosas seguidas na esteira.</p>
+      </div>
+    </div>
+
+    <!-- MÉTIRCAS DO LOTE ATIVO -->
+    <section>
+      <h2 class="text-xs uppercase tracking-wider font-semibold text-slate-400 mb-3 flex items-center gap-2">
+        <i data-lucide="box" class="w-4 h-4 text-indigo-400"></i> Métricas do Lote Ativo
+      </h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Totais do Lote -->
+        <div class="card p-4">
+          <div class="flex justify-between items-start text-slate-400">
+            <span class="text-xs font-medium">Total de Cartas</span>
+            <i data-lucide="layers" class="w-4 h-4 text-slate-500"></i>
+          </div>
+          <div class="mt-2 flex items-baseline justify-between">
+            <span class="text-3xl font-extrabold text-white" id="lote-totais">0</span>
+            <span class="text-xs text-slate-400" id="lote-tempo">--:--</span>
+          </div>
+        </div>
+
+        <!-- Normais (Calculado: Totais - Defeituosas) -->
+        <div class="card p-4 border-l-4 border-l-emerald-500">
+          <div class="flex justify-between items-start text-slate-400">
+            <span class="text-xs font-medium">Cartas Normais</span>
+            <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400"></i>
+          </div>
+          <div class="mt-2 flex items-baseline justify-between">
+            <span class="text-3xl font-extrabold text-emerald-400" id="lote-normais">0</span>
+            <span class="text-xs text-emerald-400/80 font-semibold" id="lote-yield">100% OK</span>
+          </div>
+        </div>
+
+        <!-- Defeituosas -->
+        <div class="card p-4 border-l-4 border-l-rose-500">
+          <div class="flex justify-between items-start text-slate-400">
+            <span class="text-xs font-medium">Cartas Defeituosas</span>
+            <i data-lucide="x-circle" class="w-4 h-4 text-rose-400"></i>
+          </div>
+          <div class="mt-2 flex items-baseline justify-between">
+            <span class="text-3xl font-extrabold text-rose-400" id="lote-defeito">0</span>
+            <span class="text-xs text-rose-400/80 font-semibold" id="lote-defect-rate">0% Defeito</span>
+          </div>
+        </div>
+
+        <!-- Sequência Atual de Defeitos (Do Sistema) -->
+        <div class="card p-4 border-l-4 border-l-amber-500">
+          <div class="flex justify-between items-start text-slate-400">
+            <span class="text-xs font-medium">Sequência de Defeitos</span>
+            <i data-lucide="flame" class="w-4 h-4 text-amber-400"></i>
+          </div>
+          <div class="mt-2 flex items-baseline justify-between">
+            <span class="text-3xl font-extrabold text-amber-400" id="sistema-sequencia">0</span>
+            <span class="text-xs text-slate-400">Seguidas</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAINEL CENTRAL: GRÁFICO E ACUMULADO DO SISTEMA -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      
+      <!-- Gráfico de Ocorrências no Lote (2 Colunas) -->
+      <div class="card p-5 lg:col-span-2 flex flex-col justify-between">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
+            <i data-lucide="activity" class="w-4 h-4 text-indigo-400"></i> Defeitos no Tempo (Lote Ativo)
+          </h3>
+          <span class="text-xs text-slate-400">Atualizado a cada 2s</span>
+        </div>
+        <div class="h-56 relative w-full">
+          <canvas id="chart-defetos"></canvas>
+        </div>
+      </div>
+
+      <!-- Acumulador do Sistema Global (1 Coluna) -->
+      <div class="card p-5 flex flex-col justify-between space-y-4">
+        <div>
+          <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2 mb-4">
+            <i data-lucide="cpu" class="w-4 h-4 text-indigo-400"></i> Acumulado do Sistema Global
+          </h3>
+          <p class="text-xs text-slate-400 mb-4">Métricas globais registradas na máquina desde a instalação.</p>
+          
+          <div class="space-y-3">
+            <div class="bg-slate-900/60 p-3 rounded-lg flex justify-between items-center border border-slate-700/40">
+              <span class="text-xs text-slate-400">Total Histórico:</span>
+              <span class="text-sm font-bold text-slate-100" id="sistema-totais">0</span>
+            </div>
+
+            <div class="bg-slate-900/60 p-3 rounded-lg flex justify-between items-center border border-slate-700/40">
+              <span class="text-xs text-slate-400">Normais Históricas:</span>
+              <span class="text-sm font-bold text-emerald-400" id="sistema-normais">0</span>
+            </div>
+
+            <div class="bg-slate-900/60 p-3 rounded-lg flex justify-between items-center border border-slate-700/40">
+              <span class="text-xs text-slate-400">Defeituosas Históricas:</span>
+              <span class="text-sm font-bold text-rose-400" id="sistema-defeituosas">0</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-3 border-t border-slate-700/50 flex justify-between text-xs text-slate-400">
+          <span>Rendimento Global:</span>
+          <span class="font-bold text-emerald-400" id="sistema-yield">0%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- FEED DE CARTAS DEFEITUOSAS RECENTES -->
+    <section class="card p-5">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
+          <i data-lucide="alert-circle" class="w-4 h-4 text-rose-400"></i> Últimas Cartas Defeituosas Detectadas
+        </h3>
+        <span class="text-xs text-slate-400">Mostrando até 6 registros</span>
+      </div>
+
+      <!-- Grid de Cards com Foto e Metadados -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4" id="defects-feed">
+        <!-- Renderizado dinamicamente via JS -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- RODAPÉ -->
+  <footer class="bg-slate-950 border-t border-slate-800 text-center py-3 text-xs text-slate-500">
+    Sistema de Visão Computacional • Controle de Qualidade
+  </footer>
+
+  <!-- JavaScript Principal -->
+  <script src="script.js"></script>
+</body>
+</html>
