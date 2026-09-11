@@ -13,3 +13,9 @@ sqlalchemy>=2.0.0
 # Servidor e Dashboard (Raspberry Pi 5)
 fastapi>=0.100.0
 uvicorn[standard]>=0.22.0
+
+# Testes e Mocking
+pytest>=7.0.0
+
+# Intalar picamera via apt (não via pip) na raspberry pi 5, pois a biblioteca picamera2 não é compatível com pip.
+# sudo apt install -y python3-picamera2

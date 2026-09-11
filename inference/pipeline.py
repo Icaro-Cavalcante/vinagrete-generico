@@ -1,69 +1,63 @@
-import os
-from datetime import datetime
+import base64
 
 import cv2
+import numpy as np
+from sqlalchemy.orm import Session
+
+from backend.crud import registrar_inspecao_com_dados
+from backend.database import SessionLocal  # Gerenciador de sessões do SQLAlchemy
 
 from .camera import CameraController
-from .detector import YOLOInference
+from .detector import MODEL_PATH, YOLOInference
+
+
+def frame_to_base64(frame: np.ndarray) -> str:
+    """Converte matriz NumPy BGR em string Base64 com cabeçalho data:image/jpeg."""
+    success, buffer = cv2.imencode(".jpg", frame)
+    if not success:
+        raise RuntimeError("Falha ao codificar frame para JPEG.")
+    encoded = base64.b64encode(buffer).decode("utf-8")
+    return f"data:image/jpeg;base64,{encoded}"
 
 
 class InspectionPipeline:
-    def __init__(
-        self, model_path: str = "models/best.pt", output_dir: str = "data/defects"
-    ):
+    def __init__(self, model_path: str = MODEL_PATH):
         self.detector = YOLOInference(model_path=model_path)
         self.camera = CameraController()
-        self.output_dir = output_dir
-        os.makedirs(self.output_dir, exist_ok=True)
 
-    def process_trigger(self, lote_id: str = "LOTE_001"):
+    def process_trigger(self) -> bool:
         """
-        Executa um ciclo completo acionado pelo sinal do ESP32-S3.
+        Executa captura, inferência do YOLO e gravação de estatísticas/defeito no SQLite.
+        Retorna True para item Conforme e False para Defeito.
         """
-        # 1. Captura da imagem da esteira
+        # 1. Captura rápida via RAM
         image = self.camera.capture_frame()
 
-        # 2. Inferência de IA
+        # 2. Predição com Ultralytics YOLO
         result = self.detector.predict(image)
 
-        # 3. Processamento da Decisão de Qualidade
-        if result.is_conforme:
-            print("[INSPEÇÃO] Item CONFORME. Aguardando próximo sinal.")
-            return True
+        # 3. Codifica imagem anotada apenas em caso de falha para poupar IO/processamento
+        imagem_b64 = None
+        if not result.is_conforme:
+            imagem_b64 = frame_to_base64(result.annotated_image)
 
-        print(f"[INSPEÇÃO] DEFEITO DETECTADO: {result.defects}")
+        # 4. Transação com o banco SQLite via CRUD
+        db: Session = SessionLocal()
+        try:
+            registrar_inspecao_com_dados(
+                db=db,
+                possui_defeito=not result.is_conforme,
+                tipo_defeito=", ".join(result.defects) if result.defects else None,
+                grau_confiabilidade=result.max_confidence
+                if not result.is_conforme
+                else None,
+                imagem=imagem_b64,
+            )
+        finally:
+            db.close()
 
-        # Salva o arquivo de imagem no disco
-        now = datetime.now()
-        timestamp_str = now.strftime("%Y%m%d_%H%M%S_%f")
-        img_filename = f"{lote_id}_{timestamp_str}.jpg"
-        img_path = os.path.join(self.output_dir, img_filename)
-        cv2.imwrite(img_path, result.annotated_image)
+        return result.is_conforme
 
-        # Ação 1: Notificar ESP32-S3 via Serial (alerta físico)
-        self._send_serial_alert(result.defects)
-
-        # Ação 2: Gravação no Banco de Dados SQLite
-        self._save_to_database(
-            img_path=img_path,
-            timestamp=now,
-            lote=lote_id,
-            confianca=result.max_confidence,
-            tipo_defeito=", ".join(result.defects),
-        )
-        return False
-
-    def _send_serial_alert(self, defects: list):
-        # TODO: Implementar escrita no cabo Serial/UART para o ESP32-S3
-        pass
-
-    def _save_to_database(
-        self,
-        img_path: str,
-        timestamp: datetime,
-        lote: str,
-        confianca: float,
-        tipo_defeito: str,
-    ):
-        # TODO: Implementar inserção da ocorrência e atualização das estatísticas no SQLite via SQLAlchemy
-        pass
+    def close(self):
+        """Libera o hardware da câmera ao encerrar a aplicação."""
+        self.camera.close()
