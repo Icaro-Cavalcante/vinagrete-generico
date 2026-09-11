@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import numpy as np
 from ultralytics import YOLO
 
-MODEL_PATH: str = "models/best.pt"  # Caminho para o modelo YOLOv8 treinado via DVC
+MODEL_PATH: str = "weights/best.pt"  # Caminho para o modelo YOLO
 
 @dataclass
 class DetectionResult:
