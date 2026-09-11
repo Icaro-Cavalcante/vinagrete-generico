@@ -13,45 +13,44 @@ class SerialCommunicator:
         self.ser.reset_input_buffer()
 
     def send_defect_alert(self):
-        """Envia o sinal de falha via UART para o ESP32-S3."""
         self.ser.write(b"DEFECT\n")
         self.ser.flush()
 
     def read_line(self) -> str:
         if self.ser.in_waiting > 0:
-            line = self.ser.readline().decode("utf-8", errors="ignore").strip()
-            return line
+            return self.ser.readline().decode("utf-8", errors="ignore").strip()
         return ""
 
     def close(self):
         self.ser.close()
 
 
-def run_inference_service(port: str = PORT, lote_id: str = "LOTE_001"):
-    print(f"[SERIAL] Conectando na porta {port}...")
+def run_inference_service(port: str = PORT):
+    print(f"[SERVIÇO] Iniciando barramento Serial na porta {port}...")
     communicator = SerialCommunicator(port=port)
     pipeline = InspectionPipeline()
 
-    print("[SERIAL] Aguardando sinal 'TRIGGER' do ESP32-S3...")
+    print("[SERVIÇO] Sistema pronto. Aguardando sinal 'TRIGGER' do ESP32-S3...")
     try:
         while True:
             command = communicator.read_line()
             if command == "TRIGGER":
-                print("[SERIAL] Trigger recebido! Executando inferência...")
-
-                # Executa a captura e o modelo de IA
-                # Retorna True para Conforme e False para Defeito
-                is_conforme = pipeline.process_trigger(lote_id=lote_id)
+                # Executa ciclo completo: captura -> YOLO -> banco de dados
+                is_conforme = pipeline.process_trigger()
 
                 if not is_conforme:
-                    print("[SERIAL] Enviando sinal 'DEFECT' para o ESP32-S3...")
+                    # Envia resposta imediata para acionar LED/Buzzer no ESP32-S3
                     communicator.send_defect_alert()
+                    print("[INSPEÇÃO] Reprovado -> Sinal 'DEFECT' enviado ao ESP32-S3.")
+                else:
+                    print("[INSPEÇÃO] Aprovado.")
 
-            time.sleep(0.005)  # Ciclo de polling
+            time.sleep(0.002)  # Ciclo de varredura leve de 2ms
     except KeyboardInterrupt:
-        print("\n[SERIAL] Encerrando serviço de inspeção.")
+        print("\n[SERVIÇO] Desconectando hardware e encerrando serviço...")
     finally:
         communicator.close()
+        pipeline.close()
 
 
 if __name__ == "__main__":
