@@ -29,9 +29,7 @@ class YOLOInference:
 
         # Classes de falha esperadas no dataset do projeto
         self.defect_classes = defect_classes or {
-            "etiqueta_ausente",
-            "etiqueta_rasgada",
-            "etiqueta_torta",
+            "damage",
         }
 
     def predict(self, image: np.ndarray) -> DetectionResult:
