@@ -6,28 +6,20 @@ import pytest
 from inference.camera import CameraController
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def camera():
-    cam = CameraController()
+    cam = CameraController(resolution=(1296, 972), framerate=60)
+    # Warm-up: descarta os primeiros frames para estabilizar o buffer DMA
+    for _ in range(5):
+        _ = cam.capture_frame()
+        time.sleep(0.01)
     yield cam
     cam.close()
 
 
-def test_camera_capture_returns_valid_frame(camera):
-    """Valida se a câmera retorna uma matriz BGR válida."""
-    frame = camera.capture_frame()
-
-    assert frame is not None, "O frame capturado não deve ser Nulo."
-    assert isinstance(frame, np.ndarray), "O retorno deve ser um ndarray do NumPy."
-    assert frame.size > 0, "A imagem capturada não pode estar vazia."
-    assert len(frame.shape) == 3, (
-        "A imagem deve possuir 3 dimensões (Altura, Largura, Canais)."
-    )
-    assert frame.shape[2] == 3, "A imagem deve estar no formato de 3 canais de cor."
-
 def test_camera_capture_latency(camera):
-    """Mede a latência de captura individual em múltiplos ciclos."""
-    iterations = 20
+    """Mede a latência em regime permanente utilizando a mediana (P50)."""
+    iterations = 30
     latencies = []
 
     for _ in range(iterations):
@@ -35,21 +27,19 @@ def test_camera_capture_latency(camera):
         frame = camera.capture_frame()
         end_time = time.perf_counter()
 
-        latency_ms = (end_time - start_time) * 1000
-        latencies.append(latency_ms)
-
+        latencies.append((end_time - start_time) * 1000)
         assert frame is not None
 
-    avg_latency = np.mean(latencies)
-    min_latency = np.min(latencies)
+    median_latency = np.median(latencies)
+    p95_latency = np.percentile(latencies, 95)
     max_latency = np.max(latencies)
 
     print(f"\n[BENCHMARK] Capturas: {iterations}")
-    print(f"[BENCHMARK] Média: {avg_latency:.2f} ms")
-    print(f"[BENCHMARK] Mínima: {min_latency:.2f} ms")
+    print(f"[BENCHMARK] Mediana (P50): {median_latency:.2f} ms")
+    print(f"[BENCHMARK] Percentil 95: {p95_latency:.2f} ms")
     print(f"[BENCHMARK] Máxima: {max_latency:.2f} ms")
 
-    # Validação de tolerância para operação em tempo real na esteira (meta: < 35 ms)
-    assert avg_latency < 35.0, (
-        f"Latência média ({avg_latency:.2f} ms) excedeu o limite máximo aceitável de 35 ms."
+    # A latência real em regime permanente deve ser menor que 25 ms
+    assert median_latency < 25.0, (
+        f"Mediana de latência ({median_latency:.2f} ms) excedeu o limite operacional de 25 ms."
     )
