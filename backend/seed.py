@@ -8,8 +8,8 @@ Execução:
 import random
 from datetime import datetime, timedelta, timezone
 
-from database import Base, SessionLocal, engine
-from models import Defeito, Lote, SistemaEstado
+from .database import Base, SessionLocal, engine
+from .models import Defeito, Lote, SistemaEstado
 
 TIPOS_DEFEITO = [
     "Scratch",
