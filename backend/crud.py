@@ -9,8 +9,8 @@ from datetime import datetime, timezone
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from models import Defeito, Lote, SistemaEstado
-from schemas import DefeitoPorHorario, InspecaoRegistrar
+from .models import Defeito, Lote, SistemaEstado
+from .schemas import DefeitoPorHorario, InspecaoRegistrar
 
 
 # ──────────────────────────────────────
