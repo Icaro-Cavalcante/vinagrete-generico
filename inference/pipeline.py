@@ -8,7 +8,7 @@ from backend.crud import registrar_inspecao_com_dados
 from backend.database import SessionLocal  # Gerenciador de sessões do SQLAlchemy
 
 from .camera import CameraController
-from .detector import YOLOInference
+from .detector import MODEL_PATH, YOLOInference
 
 
 def frame_to_base64(frame: np.ndarray) -> str:
@@ -21,7 +21,7 @@ def frame_to_base64(frame: np.ndarray) -> str:
 
 
 class InspectionPipeline:
-    def __init__(self, model_path: str = "models/best.pt"):
+    def __init__(self, model_path: str = MODEL_PATH):
         self.detector = YOLOInference(model_path=model_path)
         self.camera = CameraController()
 
