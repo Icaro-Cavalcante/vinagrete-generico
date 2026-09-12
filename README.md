@@ -8,7 +8,7 @@
 
 ---
 
-## 1. Visão Geral do Projeto
+## 📑 1. Visão Geral do Projeto
 
 No setor de manufatura gráfica especializado na produção de **Cartas Colecionáveis** (*Trading Card Games* – TCG, como *Pokémon*), a etapa pós-corte (guilhotina mecânica e corte-e-vinco) é crítica. O desgaste contínuo de lâminas e oscilações no tracionamento das esteiras geram defeitos como:
 - **Desalinhamento Geométrico (*Miscut*):** Corte assimétrico em relação às margens de impressão;
@@ -21,11 +21,11 @@ Este projeto propõe uma **célula automatizada de controle de qualidade na bord
 
 ---
 
-## 2. Arquitetura da Solução
+## 💡 2. Arquitetura da Solução
 
 O sistema foi arquitetado adotando o **desacoplamento estrito entre a camada física determinística (IoT) e a camada cognitiva pesada (Edge AI)**, garantindo que o processamento intensivo de visão computacional não comprometa o tempo de resposta e a segurança da esteira.
 
-### 2.1. Diagrama de Blocos Preliminar da Arquitetura
+### 🖧 2.1. Diagrama de Blocos Preliminar da Arquitetura
 
 ```mermaid
 flowchart TD
@@ -56,7 +56,7 @@ flowchart TD
     end
 ```
 
-### 2.2. Fluxo Sequencial de Execução
+### 🔁 2.2. Fluxo Sequencial de Execução
 1. **Passagem do Item:** A carta em transporte atinge o ponto focal da câmera e é interceptada pelo Background Subtraction, que para a esteira posicionando a carta em posição adequada para captura de imagem;
 2. **Gatilho Determinístico:** O ESP32-S3 identifica o evento com tempo de resposta $< 5\text{ ms}$ (com *debounce* de $50\text{ ms}$) e envia a instrução `TRIGGER` via barramento serial UART cabeado;
 3. **Captura em Memória:** A Raspberry Pi 5 realiza a captura instantânea via `Picamera2` direto do *buffer* DMA em RAM ($< 15\text{ ms}$);
@@ -69,7 +69,7 @@ flowchart TD
 
 ---
 
-## 3. Topologia de Hardware e Conexões Físicas
+## ⚙️ 3. Topologia de Hardware e Conexões Físicas
 
 A montagem experimental de bancada integra a placa microcontrolada ESP32-S3 e o computador de placa única Raspberry Pi 5 através de ligações ponto a ponto com referência lógica comum:
 
@@ -86,7 +86,7 @@ A montagem experimental de bancada integra a placa microcontrolada ESP32-S3 e o 
 
 ---
 
-## 4. Estrutura do Repositório
+## </> 4. Estrutura do Repositório
 
 ```text
 vinagrete-generico/
@@ -129,37 +129,37 @@ vinagrete-generico/
 
 ---
 
-## 5. Dependências e Tecnologias Utilizadas
+## 🚨 5. Dependências e Tecnologias Utilizadas
 
-### 5.1. Inteligência Artificial e Visão Computacional (Raspberry Pi 5)
+### 🤖🇦🇮 5.1. Inteligência Artificial e Visão Computacional (Raspberry Pi 5)
 - **Ultralytics YOLOv8/MobileNet (`ultralytics>=8.0.0`):** Arquitetura convolucional de detecção de objetos por *bounding boxes*, selecionada pelo compromisso entre precisão (*mAP*) e baixa latência em CPUs ARM de borda;
 - **OpenCV Headless (`opencv-python-headless>=4.8.0`):** Processamento matricial de imagens, conversão de espaços de cor e renderização de anotações;
 - **Picamera2 (`python3-picamera2`):** Interface nativa do Raspberry Pi OS (libcamera) que opera em modo de vídeo contínuo em RAM, eliminando o *overhead* de reinicialização de sensor e atingindo latências de captura inferiores a $15\text{ ms}$;
 - **NumPy (`numpy>=1.24.0`):** Operações vetorizadas de tensores;
 - **DVC (`dvc>=3.0.0`):** Versionamento de artefatos binários e rastreamento dos pesos do modelo (`best.pt`).
 
-### 5.2. Comunicação e Persistência
+### ⌯⌲ 5.2. Comunicação e Persistência
 - **PySerial (`pyserial>=3.5`):** Comunicação serial assíncrona cabeada entre Raspberry Pi 5 e ESP32-S3;
 - **SQLAlchemy (`sqlalchemy>=2.0.0`):** ORM (*Object-Relational Mapping*) para modelagem e transações com garantias ACID;
 - **SQLite 3:** Banco de dados relacional embarcado local, operando com *Write-Ahead Logging* (WAL) para suportar leituras concorrentes e proteção contra perda de dados em desligamentos repentinos.
 
-### 5.3. Backend, Interface e Infraestrutura
+### 🗄️ 5.3. Backend, Interface e Infraestrutura
 - **FastAPI (`fastapi>=0.100.0`):** Framework web assíncrono de alta performance para a disponibilização da API REST;
 - **Uvicorn (`uvicorn[standard]>=0.22.0`):** Servidor ASGI assíncrono;
 - **Docker & Docker Compose:** Isolamento de contêineres e orquestração dos serviços de backend e frontend web;
 - **Nginx:** Servidor HTTP e proxy reverso para distribuição estática do painel web.
 
-### 5.4. Firmware e Microcontrolador (ESP32-S3)
+### 🏻 5.4. Firmware e Microcontrolador (ESP32-S3)
 - **ESP-IDF v5.x / FreeRTOS:** Sistema operacional de tempo real com divisão preemptiva de tarefas (*tasks* independentes para *polling* de botão, leitura de sensor de esteira e escuta serial UART);
 - **Drivers de Hardware:** `driver/gpio` e `driver/uart` nativos do ecossistema Espressif.
 
 ---
 
-## 6. Guia de Instalação e Execução
+## 🧭 6. Guia de Instalação e Execução
 
 O projeto foi estruturado para cumprir o princípio de reprodutibilidade técnica em ambiente limpo (*Clean Environment Test*).
 
-### 6.1. Pré-requisitos
+### ➡️ 6.1. Pré-requisitos
 - **Raspberry Pi 5** com Raspberry Pi OS (Bookworm, 64-bit);
 - **Python 3.11+** com `python3-venv` instalado;
 - **ESP-IDF v5.1+** (ou extensão Espressif no VS Code) configurado para gravação no ESP32-S3;
@@ -167,7 +167,7 @@ O projeto foi estruturado para cumprir o princípio de reprodutibilidade técnic
 
 ---
 
-### 6.2. Passo a Passo: Borda e Visão (Raspberry Pi 5)
+### ➡️ 6.2. Passo a Passo: Borda e Visão (Raspberry Pi 5)
 
 1. **Clonar o Repositório:**
    ```bash
@@ -205,7 +205,7 @@ O projeto foi estruturado para cumprir o princípio de reprodutibilidade técnic
 
 ---
 
-### 6.3. Passo a Passo: Firmware da Esteira (ESP32-S3)
+### ➡️ 6.3. Passo a Passo: Firmware da Esteira (ESP32-S3)
 
 1. **Navegar até o Diretório do Firmware:**
    ```bash
@@ -226,7 +226,7 @@ O projeto foi estruturado para cumprir o princípio de reprodutibilidade técnic
 
 ---
 
-### 6.4. Passo a Passo: Backend e Dashboard Web
+### ➡️ 6.4. Passo a Passo: Backend e Dashboard Web
 
 Você pode executar o backend e o painel de monitoramento de duas formas:
 
@@ -249,7 +249,7 @@ docker compose up -d --build
 
 ---
 
-### 6.5. Execução de Testes e Validação de Desempenho
+### ➡️ 6.5. Execução de Testes e Validação de Desempenho
 
 Para assegurar a conformidade funcional e o atendimento aos requisitos de baixa latência de borda:
 
@@ -263,7 +263,7 @@ python scripts/benchmark_camera.py
 
 ---
 
-## 7. Rastreabilidade com os Requisitos do Projeto
+## 𓊂 7. Rastreabilidade com os Requisitos do Projeto
 
 A implementação contida neste repositório atende diretamente aos requisitos formais homologados para o projeto:
 
@@ -279,6 +279,6 @@ A implementação contida neste repositório atende diretamente aos requisitos f
 
 ---
 
-## 8. Licença e Autoria
+## 🧾 8. Licença e Autoria
 
 Este projeto foi desenvolvido como requisito parcial de conclusão do **Programa Nacional de Aprendizado Acelerado em Tecnologia (PNAAT 2026)**.
