@@ -30,7 +30,8 @@ static const char *TAG = "ESTEIRA";
 #define UART_BAUD_RATE  115200
 #define BUF_SIZE        1024
 
-/* Estado global do motor */
+/* Estado global do sistema e motor */
+static bool sys_on = false;
 static bool motor_ligado = false;
 
 static void sinalizar(int num_pulsos)
@@ -54,7 +55,24 @@ static void motor_set(bool ligar)
     motor_ligado = ligar;
     gpio_set_level(GPIO_MOTOR, motor_ligado ? 1 : 0);
     ESP_LOGI(TAG, "Motor %s", motor_ligado ? "LIGADO" : "DESLIGADO");
-    sinalizar(motor_ligado ? 1 : 2);
+}
+
+static void system_toggle(void)
+{
+    sys_on = !sys_on;
+    if (sys_on) {
+        ESP_LOGI(TAG, "Sistema LIGADO (SYS_ON)");
+        sinalizar(1);
+        const char *msg = "SYS_ON\n";
+        uart_write_bytes(UART_PORT, msg, strlen(msg));
+        motor_set(true);
+    } else {
+        ESP_LOGI(TAG, "Sistema DESLIGADO (SYS_OFF)");
+        sinalizar(2);
+        const char *msg = "SYS_OFF\n";
+        uart_write_bytes(UART_PORT, msg, strlen(msg));
+        motor_set(false);
+    }
 }
 
 static void uart_init(void)
@@ -116,34 +134,13 @@ static void botoeira_task(void *arg)
         if (contador_estavel_ms >= DEBOUNCE_MS && nivel_atual != nivel_estavel) {
             nivel_estavel = nivel_atual;
             if (nivel_estavel == 0 && !aguardando_liberar) {
-                motor_set(!motor_ligado);
+                system_toggle();
                 aguardando_liberar = true;
             } else if (nivel_estavel == 1) {
                 aguardando_liberar = false;
             }
         }
         vTaskDelay(pdMS_TO_TICKS(POLL_DELAY_MS));
-    }
-}
-
-/* Detecta a passagem de itens na esteira e envia gatilho para a Raspberry Pi 5 */
-static void sensor_task(void *arg)
-{
-    int nivel_anterior = 1;
-
-    while (1) {
-        if (motor_ligado) {
-            int nivel_atual = gpio_get_level(GPIO_BOTOEIRA);
-            // Borda de descida: item interceptou o sensor
-            if (nivel_anterior == 1 && nivel_atual == 0) {
-                ESP_LOGI(TAG, "Item detectado na posição. Enviando TRIGGER...");
-                const char *msg = "TRIGGER\n";
-                uart_write_bytes(UART_PORT, msg, strlen(msg));
-                vTaskDelay(pdMS_TO_TICKS(300)); // Delay para evitar relaituras do mesmo item
-            }
-            nivel_anterior = nivel_atual;
-        }
-        vTaskDelay(pdMS_TO_TICKS(POLL_DELAY_MS)); // Pequeno delay para não sobrecarregar a CPU
     }
 }
 
@@ -156,15 +153,25 @@ static void uart_rx_task(void *arg)
         if (len > 0) {
             data[len] = '\0';
             ESP_LOGI(TAG, "UART Recebido: %s", (char*)data);
+            
+            if (strstr((char*)data, "STOP") != NULL) {
+                ESP_LOGI(TAG, "Comando STOP recebido");
+                motor_set(false);
+            }
+            if (strstr((char*)data, "START") != NULL) {
+                ESP_LOGI(TAG, "Comando START recebido");
+                if (sys_on) {
+                    motor_set(true);
+                }
+            }
             if (strstr((char*)data, "DEFECT") != NULL) {
-                // Não conformidade: aciona 3 pulsos de alerta físico
+                ESP_LOGI(TAG, "Comando DEFECT recebido");
+                motor_set(false);
                 sinalizar(3);
             }
         }
     }
 }
-
-
 
 void app_main(void)
 {
@@ -173,6 +180,5 @@ void app_main(void)
     uart_init();
 
     xTaskCreate(botoeira_task, "botoeira_task", 2048, NULL, 10, NULL);
-    xTaskCreate(sensor_task,   "sensor_task",   2048, NULL, 9,  NULL);
     xTaskCreate(uart_rx_task,  "uart_rx_task",  3072, NULL, 8,  NULL);
 }
