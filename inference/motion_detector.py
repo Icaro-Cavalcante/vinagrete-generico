@@ -9,11 +9,17 @@ import numpy as np
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
-    from config import BG_SUBTRACTOR_THRESHOLD, MIN_CONTOUR_AREA, ROI_X_BOUNDS
+    from config import (
+        BG_SUBTRACTOR_THRESHOLD,
+        MIN_CONTOUR_AREA,
+        ROI_X_BOUNDS,
+        ROI_Y_BOUNDS,
+    )
 except ImportError:
-    ROI_X_BOUNDS = (0, 10000)
-    MIN_CONTOUR_AREA = 500
-    BG_SUBTRACTOR_THRESHOLD = 50
+    ROI_X_BOUNDS = (450, 900)
+    ROI_Y_BOUNDS = (0, 972)
+    MIN_CONTOUR_AREA = 8000
+    BG_SUBTRACTOR_THRESHOLD = 16
 
 
 class ItemState(Enum):
@@ -26,7 +32,7 @@ class MotionDetector:
     def __init__(
         self,
         roi_x_bounds=ROI_X_BOUNDS,
-        roi_y_bounds=(0, 10000),
+        roi_y_bounds=ROI_Y_BOUNDS,
         min_contour_area=MIN_CONTOUR_AREA,
         bg_subtractor_threshold=BG_SUBTRACTOR_THRESHOLD,
         min_exit_time_sec=1.2,  # Tempo mínimo para ignorar re-disparos na saída

@@ -8,7 +8,7 @@ import sys
 
 # Adiciona o diretório raiz ao sys.path para importar config
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import DEFECT_CLASSES, MODEL_PATH
+from config import CONF_THRESHOLD, DEFECT_CLASSES, MODEL_PATH
 
 @dataclass
 class DetectionResult:
@@ -25,7 +25,7 @@ class YOLOInference:
     def __init__(
         self,
         model_path: str = MODEL_PATH,
-        conf_threshold: float = 0.5,
+        conf_threshold: float = CONF_THRESHOLD,
         defect_classes: set[str] = DEFECT_CLASSES,
     ):
         # Carrega o modelo versionado via DVC baixado no diretório local
@@ -44,20 +44,32 @@ class YOLOInference:
 
         defects_found: list[str] = []
         max_conf: float = 0.0
+        defect_classes_lower = {c.lower() for c in self.defect_classes}
 
-        if results.boxes is not None and len(results.boxes) > 0:
+        # Suporte a modelos de classificação (YOLO-cls: good vs miscut)
+        if results.probs is not None:
+            cls_id = int(results.probs.top1)
+            class_name = str(self.model.names[cls_id])
+            conf = float(results.probs.top1conf)
+
+            if class_name.lower() in defect_classes_lower and conf >= self.conf_threshold:
+                defects_found.append(class_name)
+                max_conf = conf
+
+        # Suporte a modelos de detecção de objetos (YOLO-det com bounding boxes)
+        elif results.boxes is not None and len(results.boxes) > 0:
             for box in results.boxes:
                 cls_id = int(box.cls[0])
-                class_name = self.model.names[cls_id]
+                class_name = str(self.model.names[cls_id])
                 conf = float(box.conf[0])
 
-                if class_name in self.defect_classes:
+                if class_name.lower() in defect_classes_lower:
                     defects_found.append(class_name)
                     max_conf = max(max_conf, conf)
 
         is_conforme = len(defects_found) == 0
 
-        # Desenha as bounding boxes e labels na imagem (retorna ndarray BGR)
+        # Desenha as anotações na imagem (funciona para detecção e classificação)
         annotated_img = results.plot()
 
         return DetectionResult(

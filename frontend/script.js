@@ -14,6 +14,8 @@ const DEFEITOS_TRADUCAO = {
   "Edge Wear": "Desgaste de Borda",
   "Heavy Wear": "Desgaste Severo",
   "Tear": "Rasgo",
+  "miscut": "Corte Desalinhado (Miscut)",
+  "Miscut": "Corte Desalinhado (Miscut)",
   // Compatibilidade com termos em português anteriores
   "Corte Desalinhado (Miscut)": "Corte Desalinhado",
   "Risco na Superfície": "Risco na Superfície",

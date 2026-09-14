@@ -1,12 +1,22 @@
 import numpy as np
 import pytest
+import torch
+
+try:
+    import ultralytics.nn.tasks
+    torch.serialization.add_safe_globals([
+        ultralytics.nn.tasks.ClassificationModel,
+        torch.nn.modules.container.Sequential,
+    ])
+except Exception:
+    pass
 
 from inference.detector import DetectionResult, MODEL_PATH, YOLOInference
 
 
 @pytest.fixture(scope="module")
 def detector():
-    # Instancia o detector com o modelo compilado em models/best.pt
+    # Instancia o detector com o modelo compilado em weights/best.pt
     return YOLOInference(model_path=MODEL_PATH, conf_threshold=0.5)
 
 
