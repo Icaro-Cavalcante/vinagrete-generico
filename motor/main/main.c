@@ -24,7 +24,7 @@ static const char *TAG = "ESTEIRA";
 #define PAUSA_MS        100          // Pausa entre pulsos (quando houver mais de um)
 
 /* ---------- Configurações UART ---------- */
-#define UART_PORT       UART_NUM_1
+#define UART_PORT       UART_NUM_0
 #define UART_TX_PIN     GPIO_NUM_17  // Conectar ao RX da Raspberry Pi 5
 #define UART_RX_PIN     GPIO_NUM_18  // Conectar ao TX da Raspberry Pi 5
 #define UART_BAUD_RATE  115200
@@ -76,7 +76,7 @@ static void uart_init(void)
     };
     uart_driver_install(UART_PORT, BUF_SIZE * 2, 0, 0, NULL, 0);
     uart_param_config(UART_PORT, &uart_config);
-    uart_set_pin(UART_PORT, UART_TX_PIN, UART_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+    uart_set_pin(UART_PORT, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
 }
 
 static void gpio_config_init(void)
