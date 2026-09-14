@@ -18,19 +18,28 @@ class SerialCommunicator:
         self.ser.reset_input_buffer()
 
     def send_command(self, cmd: str):
-        self.ser.write(cmd.encode("utf-8"))
-        self.ser.flush()
+        try:
+            self.ser.write(cmd.encode("utf-8"))
+            self.ser.flush()
+        except Exception as e:
+            print(f"[SERIAL ERRO] Falha ao enviar comando {cmd.strip()}: {e}")
 
     def send_defect_alert(self):
         self.send_command("DEFECT\n")
 
     def read_line(self) -> str:
-        if self.ser.in_waiting > 0:
-            return self.ser.readline().decode("utf-8", errors="ignore").strip()
+        try:
+            if self.ser.in_waiting > 0:
+                return self.ser.readline().decode("utf-8", errors="ignore").strip()
+        except Exception as e:
+            print(f"[SERIAL ERRO] Falha ao ler serial: {e}")
         return ""
 
     def close(self):
-        self.ser.close()
+        try:
+            self.ser.close()
+        except Exception:
+            pass
 
 
 def run_inference_service(port: str = SERIAL_PORT):
@@ -44,14 +53,26 @@ def run_inference_service(port: str = SERIAL_PORT):
 
     try:
         while True:
-            # Verifica mensagens do ESP32-S3
-            command = communicator.read_line()
-            if command == "SYS_ON":
-                sys_on = True
-                print("[SERVIÇO] Sistema ATIVO. Iniciando captura de quadros.")
-            elif command == "SYS_OFF":
-                sys_on = False
-                print("[SERVIÇO] Sistema INATIVO. Aguardando SYS_ON.")
+            # Verifica e processa todas as mensagens pendentes do ESP32-S3
+            while communicator.ser.in_waiting > 0:
+                line = communicator.read_line()
+                if not line:
+                    break
+                if "SYS_ON" in line:
+                    if not sys_on:
+                        sys_on = True
+                        print("[SERVIÇO] Sistema ATIVO. Aguardando estabilização da esteira...")
+                        time.sleep(1.0)
+                        # Descarta quadros de aceleração inicial da esteira
+                        for _ in range(10):
+                            pipeline.camera.capture_frame()
+                            time.sleep(0.02)
+                        print("[SERVIÇO] Esteira estabilizada. Monitorando ROI.")
+                elif "SYS_OFF" in line:
+                    sys_on = False
+                    print("[SERVIÇO] Sistema INATIVO. Aguardando SYS_ON.")
+                else:
+                    print(f"[ESP32] {line}")
 
             # Se sistema estiver ativo, captura continuamente
             if sys_on:
@@ -86,10 +107,13 @@ def run_inference_service(port: str = SERIAL_PORT):
                     motion_detector.reset_to_exiting()
                     motion_detector.set_belt_moving(True)
 
-                    # LIMPEZA DE BUFFER: Descarta os 5 quadros antigos da fila da câmera
+                    # Cooldown mecânico: Aguarda a esteira acelerar e retirar a carta (1.0s)
+                    time.sleep(1.0)
+
+                    # LIMPEZA DE BUFFER: Descarta quadros residuais da fila da câmera
                     for _ in range(5):
                         pipeline.camera.capture_frame()
-                        time.sleep(0.03)
+                        time.sleep(0.02)
             else:
                 time.sleep(0.1)
 

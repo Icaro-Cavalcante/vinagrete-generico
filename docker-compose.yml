@@ -11,6 +11,8 @@ services:
       - /run/udev:/run/udev:ro
       - ./data:/app/data
       - ./weights:/app/weights
+      - ./inference:/app/inference
+      - ./config.py:/app/config.py
     environment:
       - PYTHONUNBUFFERED=1
       - SERIAL_PORT=/dev/ttyUSB0
@@ -28,4 +30,15 @@ services:
       - ./data:/app/data
     environment:
       - DATABASE_URL=sqlite:////app/data/vinagrete.db
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: vinagrete-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
     restart: unless-stopped

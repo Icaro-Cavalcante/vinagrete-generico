@@ -47,6 +47,8 @@ class MotionDetector:
         self.belt_moving = True
         self.exit_start_time = 0.0
         self.empty_frames_count = 0
+        self.warmup_frames = 0
+        self.min_warmup_frames = 15
 
     def set_belt_moving(self, moving: bool):
         self.belt_moving = moving
@@ -72,11 +74,18 @@ class MotionDetector:
 
         roi = frame[y_start:y_end, x_start:x_end]
         roi_center_y = (y_end - y_start) // 2
+        roi_area = (x_end - x_start) * (y_end - y_start)
+        max_contour_area = int(roi_area * 0.85)
 
         # Congela o aprendizado do MOG2 enquanto a esteira estiver parada
         learning_rate = -1 if self.belt_moving else 0
         fg_mask = self.bg_subtractor.apply(roi, learningRate=learning_rate)
         _, fg_mask = cv2.threshold(fg_mask, 200, 255, cv2.THRESH_BINARY)
+
+        # Período de aquecimento inicial do MOG2 para convergir o modelo de fundo
+        if self.warmup_frames < self.min_warmup_frames:
+            self.warmup_frames += 1
+            return False
 
         contours, _ = cv2.findContours(
             fg_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
@@ -86,7 +95,7 @@ class MotionDetector:
         largest_area = 0
         for c in contours:
             area = cv2.contourArea(c)
-            if area > self.min_contour_area and area > largest_area:
+            if self.min_contour_area < area < max_contour_area and area > largest_area:
                 largest_area = area
                 largest_contour = c
 
@@ -97,11 +106,11 @@ class MotionDetector:
             if time.time() - self.exit_start_time < self.min_exit_time_sec:
                 return False
 
-            # 2. Só retorna a SEARCHING se o item passou para o terço inferior OU sumiu por 5 frames seguidos
+            # 2. Só retorna a SEARCHING se o item se afastou do centro (> 60px) OU sumiu por 5 frames seguidos
             if largest_contour is not None:
                 x, y, w_box, h_box = cv2.boundingRect(largest_contour)
                 cy = y + h_box // 2
-                if cy > (roi_center_y + 60):
+                if abs(cy - roi_center_y) > 60:
                     self.state = ItemState.SEARCHING
                     self.empty_frames_count = 0
             else:
