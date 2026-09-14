@@ -165,7 +165,7 @@ static void botoeira_task(void *arg)
 /* Escuta comandos vindos da Raspberry Pi 5 */
 static void uart_rx_task(void *arg)
 {
-    uint8_t data[BUF_SIZE];
+    static uint8_t data[BUF_SIZE];
     while (1) {
         int len = uart_read_bytes(UART_PORT, data, BUF_SIZE - 1, pdMS_TO_TICKS(100));
         if (len > 0) {
@@ -178,9 +178,8 @@ static void uart_rx_task(void *arg)
             }
             if (strstr((char*)data, "START") != NULL) {
                 ESP_LOGI(TAG, "Comando START recebido");
-                if (sys_on) {
-                    motor_set(true);
-                }
+                sys_on = true;
+                motor_set(true);
             }
             if (strstr((char*)data, "DEFECT") != NULL) {
                 ESP_LOGI(TAG, "Comando DEFECT recebido");
@@ -198,6 +197,6 @@ void app_main(void)
     gpio_config_init();
     uart_init();
 
-    xTaskCreate(botoeira_task, "botoeira_task", 2048, NULL, 10, NULL);
-    xTaskCreate(uart_rx_task,  "uart_rx_task",  3072, NULL, 8,  NULL);
+    xTaskCreate(botoeira_task, "botoeira_task", 4096, NULL, 10, NULL);
+    xTaskCreate(uart_rx_task,  "uart_rx_task",  4096, NULL, 8,  NULL);
 }

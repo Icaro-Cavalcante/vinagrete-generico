@@ -11,6 +11,8 @@ services:
       - /run/udev:/run/udev:ro
       - ./data:/app/data
       - ./weights:/app/weights
+      - ./inference:/app/inference
+      - ./config.py:/app/config.py
     environment:
       - PYTHONUNBUFFERED=1
       - SERIAL_PORT=/dev/ttyUSB0
