@@ -10,9 +10,10 @@ services:
     privileged: true # needed for raw picamera access
     devices:
       - "/dev/ttyUSB0:/dev/ttyUSB0"
-      # - "/dev/video0:/dev/video0"
+      - "/dev/video0:/dev/video0"
     volumes:
       - ./data:/app/data
+      - ./weights:/app/weights
     environment:
       - SERIAL_PORT=/dev/ttyUSB0
       - DATABASE_URL=sqlite:////app/data/vinagrete.db
