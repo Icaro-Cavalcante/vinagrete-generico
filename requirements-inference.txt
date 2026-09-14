@@ -5,3 +5,4 @@ ultralytics
 pyserial
 opencv-python-headless
 sqlalchemy
+pydantic
