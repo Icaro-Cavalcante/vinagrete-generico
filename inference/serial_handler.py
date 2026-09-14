@@ -85,6 +85,11 @@ def run_inference_service(port: str = SERIAL_PORT):
 
                     motion_detector.reset_to_exiting()
                     motion_detector.set_belt_moving(True)
+
+                    # LIMPEZA DE BUFFER: Descarta os 5 quadros antigos da fila da câmera
+                    for _ in range(5):
+                        pipeline.camera.capture_frame()
+                        time.sleep(0.03)
             else:
                 time.sleep(0.1)
 
