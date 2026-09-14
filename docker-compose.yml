@@ -11,6 +11,7 @@ services:
       - ./data:/app/data
       - ./weights:/app/weights
     environment:
+      - PYTHONUNBUFFERED=1
       - SERIAL_PORT=/dev/ttyUSB0
       - DATABASE_URL=sqlite:////app/data/vinagrete.db
     restart: unless-stopped
