@@ -46,29 +46,17 @@ class CameraController:
             self._init_opencv()
 
     def _init_opencv(self):
-        """Inicializa ou reconecta o dispositivo via OpenCV V4L2 forçando MJPG."""
-        if self.cap is not None:
-            self.cap.release()
-
-        self.cap = cv2.VideoCapture(self.device_index, cv2.CAP_V4L2)
-
-        # FORÇA CODEC MJPG: Vital para V4L2 / Docker na Raspberry Pi
-        self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.resolution[0])
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.resolution[1])
-        self.cap.set(cv2.CAP_PROP_FPS, self.framerate)
-
+        # Pipeline GStreamer nativa da libcamera na RPi 5
+        gst_pipeline = (
+            f"libcamerasrc ! "
+            f"video/x-raw, width={self.resolution[0]}, height={self.resolution[1]}, framerate={self.framerate}/1 ! "
+            f"videoconvert ! appsink"
+        )
+        self.cap = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
+        
         if not self.cap.isOpened():
-            print(f"[CÂMERA] Erro crítico ao abrir /dev/video{self.device_index}.")
+            print("[CÂMERA] Erro ao abrir pipeline GStreamer libcamera.")
             return False
-
-        # Warm-up: descarta os primeiros frames instáveis do sensor
-        print("[CÂMERA] Executando warm-up do sensor...")
-        for _ in range(10):
-            self.cap.read()
-            time.sleep(0.05)
-
-        print(f"[CÂMERA] Inicializada via OpenCV V4L2 (/dev/video{self.device_index}).")
         return True
 
     def capture_frame(self) -> np.ndarray | None:
