@@ -1,7 +1,12 @@
 FROM python:3.11-slim
 
 # Install system dependencies required for camera operations
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    gnupg \
+    && curl -fsSL https://archive.raspberrypi.com/debian/raspberrypi.gpg.key | gpg --dearmor -o /usr/share/keyrings/raspberrypi-archive-keyring.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/raspberrypi-archive-keyring.gpg] http://archive.raspberrypi.com/debian/ bookworm main" > /etc/apt/sources.list.d/raspi.list \
+    && apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     python3-libcamera \
     python3-picamera2 \
@@ -21,7 +26,7 @@ RUN pip install --no-cache-dir -r requirements-inference.txt
 # Copy the application code
 COPY . .
 
-# Set environment variable for PYTHONPATH
-ENV PYTHONPATH=/app
+# Unifica o diretório da aplicação e os módulos APT do sistema
+ENV PYTHONPATH="/app:/usr/lib/python3/dist-packages"
 
 CMD ["python", "-m", "inference.serial_handler"]
