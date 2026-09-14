@@ -1,14 +1,16 @@
-import time
-import serial
 import os
 import sys
+import time
 
-from inference.pipeline import InspectionPipeline
+import serial
+
 from inference.motion_detector import MotionDetector
+from inference.pipeline import InspectionPipeline
 
 # Adiciona o diretório raiz ao sys.path para importar config
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import SERIAL_PORT, BAUD_RATE
+from config import BAUD_RATE, SERIAL_PORT
+
 
 class SerialCommunicator:
     def __init__(self, port: str = SERIAL_PORT, baudrate: int = BAUD_RATE):
@@ -55,30 +57,34 @@ def run_inference_service(port: str = SERIAL_PORT):
             if sys_on:
                 frame = pipeline.camera.capture_frame()
                 if frame is not None and motion_detector.detect_motion_centered(frame):
-                    print("[VISÃO] Objeto centralizado detectado na ROI. Parando esteira...")
-                    
-                    # 1. Envia STOP para ESP32-S3
+                    print(
+                        "[VISÃO] Objeto centralizado detectado na ROI. Parando esteira..."
+                    )
+
+                    # 1. Trava o aprendizado do fundo (MOG2) e envia STOP
+                    motion_detector.set_belt_moving(False)
                     communicator.send_command("STOP\n")
-                    time.sleep(0.5)  # Pequeno atraso para a esteira parar fisicamente
-                    
-                    # 2 & 3. Captura frame de alta qualidade e roda YOLO + BD
+                    time.sleep(0.3)  # Pequeno atraso para frenagem mecânica
+
+                    # 2 & 3. Processa inferência YOLO e salva no banco de dados
                     is_conforme = pipeline.process_trigger()
-                    
+
                     if not is_conforme:
-                        # 4. Envia DEFECT
+                        # 4. Envia alerta de defeito
                         communicator.send_defect_alert()
-                        print("[INSPEÇÃO] Reprovado -> Sinal 'DEFECT' enviado ao ESP32-S3.")
-                        # ESP32 irá emitir 3 pulsos. Pode ser interessante esperar os pulsos terminarem.
+                        print(
+                            "[INSPEÇÃO] Reprovado -> Sinal 'DEFECT' enviado ao ESP32-S3."
+                        )
                         time.sleep(1.0)
                     else:
                         print("[INSPEÇÃO] Aprovado.")
-                    
-                    # 5. Envia START
+
+                    # 5. Envia START, altera estado para EXITING e destrava o MOG2
                     communicator.send_command("START\n")
                     print("[VISÃO] Retomando esteira (START).")
-                    
-                    # Evita múltiplas detecções do mesmo objeto (debounce lógico)
-                    time.sleep(1.0)
+
+                    motion_detector.reset_to_exiting()
+                    motion_detector.set_belt_moving(True)
             else:
                 time.sleep(0.1)
 
@@ -87,6 +93,7 @@ def run_inference_service(port: str = SERIAL_PORT):
     finally:
         communicator.close()
         pipeline.close()
+
 
 if __name__ == "__main__":
     run_inference_service()
