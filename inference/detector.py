@@ -8,7 +8,7 @@ import sys
 
 # Adiciona o diretório raiz ao sys.path para importar config
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import MODEL_PATH
+from config import DEFECT_CLASSES, MODEL_PATH
 
 @dataclass
 class DetectionResult:
@@ -26,16 +26,14 @@ class YOLOInference:
         self,
         model_path: str = MODEL_PATH,
         conf_threshold: float = 0.5,
-        defect_classes: set[str] | None = None,
+        defect_classes: set[str] = DEFECT_CLASSES,
     ):
         # Carrega o modelo versionado via DVC baixado no diretório local
         self.model = YOLO(model_path)
         self.conf_threshold = conf_threshold
 
         # Classes de falha esperadas no dataset do projeto
-        self.defect_classes = defect_classes or {
-            "damage",
-        }
+        self.defect_classes = defect_classes 
 
     def predict(self, image: np.ndarray) -> DetectionResult:
         """
