@@ -4,6 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile.inference
     container_name: vinagrete-inference
+    ipc: host
     privileged: true
     volumes:
       - /dev:/dev
