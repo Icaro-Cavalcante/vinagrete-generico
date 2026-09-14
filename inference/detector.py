@@ -3,7 +3,12 @@ from dataclasses import dataclass
 import numpy as np
 from ultralytics import YOLO
 
-MODEL_PATH: str = "weights/best.pt"  # Caminho para o modelo YOLO
+import os
+import sys
+
+# Adiciona o diretório raiz ao sys.path para importar config
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from config import MODEL_PATH
 
 @dataclass
 class DetectionResult:

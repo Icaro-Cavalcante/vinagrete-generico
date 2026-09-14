@@ -4,11 +4,15 @@ import serial
 
 from inference.pipeline import InspectionPipeline
 
-PORT: str = "/dev/ttyAMA0"  # Porta serial para comunicação com o ESP32-S3
+import os
+import sys
 
+# Adiciona o diretório raiz ao sys.path para importar config
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from config import SERIAL_PORT, BAUD_RATE
 
 class SerialCommunicator:
-    def __init__(self, port: str = PORT, baudrate: int = 115200):
+    def __init__(self, port: str = SERIAL_PORT, baudrate: int = BAUD_RATE):
         self.ser = serial.Serial(port=port, baudrate=baudrate, timeout=1.0)
         self.ser.reset_input_buffer()
 
@@ -25,7 +29,7 @@ class SerialCommunicator:
         self.ser.close()
 
 
-def run_inference_service(port: str = PORT):
+def run_inference_service(port: str = SERIAL_PORT):
     print(f"[SERVIÇO] Iniciando barramento Serial na porta {port}...")
     communicator = SerialCommunicator(port=port)
     pipeline = InspectionPipeline()
