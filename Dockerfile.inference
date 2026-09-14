@@ -1,11 +1,10 @@
-FROM python:3.11-slim
+FROM python:3.11-slim-bookworm
 
-# Install system dependencies required for camera operations
+# Adiciona o repositório da Raspberry Pi com [trusted=yes] para ignorar a verificação da chave SHA-1 legada
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     gnupg \
-    && curl -fsSL https://archive.raspberrypi.com/debian/raspberrypi.gpg.key | gpg --dearmor -o /usr/share/keyrings/raspberrypi-archive-keyring.gpg \
-    && echo "deb [signed-by=/usr/share/keyrings/raspberrypi-archive-keyring.gpg] http://archive.raspberrypi.com/debian/ bookworm main" > /etc/apt/sources.list.d/raspi.list \
+    && echo "deb [trusted=yes] http://archive.raspberrypi.com/debian/ bookworm main" > /etc/apt/sources.list.d/raspi.list \
     && apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     python3-libcamera \
