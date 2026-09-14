@@ -8,7 +8,7 @@ class CameraController:
     """Controlador de câmera híbrido para Raspberry Pi.
 
     Tenta utilizar Picamera2; se não disponível (ambiente Docker/slim),
-    utiliza OpenCV V4L2 com warm-up e resiliência a falhas temporárias de frame.
+    utiliza OpenCV V4L2 com suporte a MJPG, warm-up e auto-reconexão.
     """
 
     def __init__(
@@ -17,11 +17,15 @@ class CameraController:
         framerate: int = CAMERA_FRAMERATE,
         device_index: int = CAMERA_INDEX,
     ):
+        self.resolution = resolution
+        self.framerate = framerate
+        self.device_index = device_index
+
         self.use_picam2 = False
         self.picam2 = None
         self.cap = None
         self.consecutive_failures = 0
-        self.max_failures = 15  # Tolerância a falhas consecutivas antes de lançar erro
+        self.max_failures = 15
 
         try:
             from picamera2 import Picamera2
@@ -39,39 +43,47 @@ class CameraController:
             print(
                 f"[CÂMERA] Picamera2 indisponível ({e}). Tentando OpenCV V4L2 no nó /dev/video{device_index}..."
             )
-            self._init_opencv(device_index, resolution, framerate)
+            self._init_opencv()
 
-    def _init_opencv(self, device_index: int, resolution: tuple, framerate: int):
+    def _init_opencv(self):
+        """Inicializa ou reconecta o dispositivo via OpenCV V4L2 forçando MJPG."""
         if self.cap is not None:
             self.cap.release()
 
-        self.cap = cv2.VideoCapture(device_index, cv2.CAP_V4L2)
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, resolution[0])
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, resolution[1])
-        self.cap.set(cv2.CAP_PROP_FPS, framerate)
+        self.cap = cv2.VideoCapture(self.device_index, cv2.CAP_V4L2)
+
+        # FORÇA CODEC MJPG: Vital para V4L2 / Docker na Raspberry Pi
+        self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.resolution[0])
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.resolution[1])
+        self.cap.set(cv2.CAP_PROP_FPS, self.framerate)
 
         if not self.cap.isOpened():
-            raise RuntimeError(
-                f"Não foi possível abrir /dev/video{device_index} via OpenCV."
-            )
+            print(f"[CÂMERA] Erro crítico ao abrir /dev/video{self.device_index}.")
+            return False
 
-        # Warm-up: lê e descarta os primeiros frames até o sensor estabilizar
+        # Warm-up: descarta os primeiros frames instáveis do sensor
         print("[CÂMERA] Executando warm-up do sensor...")
         for _ in range(10):
             self.cap.read()
             time.sleep(0.05)
 
-        print(f"[CÂMERA] Inicializada via OpenCV V4L2 (/dev/video{device_index}).")
+        print(f"[CÂMERA] Inicializada via OpenCV V4L2 (/dev/video{self.device_index}).")
+        return True
 
     def capture_frame(self) -> np.ndarray | None:
         """Captura o frame BGR mais recente.
 
-        Retorna None em falhas pontuais de leitura sem interromper o
-        loop.
+        Em caso de falhas consecutivas, tenta reconectar ao hardware em vez de
+        encerrar a aplicação.
         """
         if self.use_picam2 and self.picam2:
             rgb_frame = self.picam2.capture_array("main")
             return rgb_frame[:, :, ::-1]
+
+        if self.cap is None or not self.cap.isOpened():
+            self._init_opencv()
+            return None
 
         ret, frame = self.cap.read()
         if not ret or frame is None:
@@ -79,10 +91,15 @@ class CameraController:
             print(
                 f"[CÂMERA] Aviso: Falha na leitura do frame ({self.consecutive_failures}/{self.max_failures})."
             )
+
+            # Tenta reconectar a câmera se ultrapassar o limite de falhas
             if self.consecutive_failures >= self.max_failures:
-                raise RuntimeError(
-                    "Múltiplas falhas consecutivas na leitura da câmera V4L2."
+                print(
+                    "[CÂMERA] Múltiplas falhas detectadas. Reinicializando o driver V4L2..."
                 )
+                self.consecutive_failures = 0
+                self._init_opencv()
+
             return None
 
         self.consecutive_failures = 0
