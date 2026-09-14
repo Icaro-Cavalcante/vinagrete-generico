@@ -29,3 +29,14 @@ services:
     environment:
       - DATABASE_URL=sqlite:////app/data/vinagrete.db
     restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: vinagrete-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
