@@ -1,23 +1,31 @@
+version: '3.8'
+
 services:
+  inference:
+    build:
+      context: .
+      dockerfile: Dockerfile.inference
+    container_name: vinagrete-inference
+    privileged: true # needed for raw picamera access
+    devices:
+      - "/dev/ttyUSB0:/dev/ttyUSB0"
+      # - "/dev/video0:/dev/video0" # alternatively, use specific video/media nodes
+    volumes:
+      - ./data:/app/data
+    environment:
+      - SERIAL_PORT=/dev/ttyUSB0
+      - DATABASE_URL=sqlite:////app/data/app.db
+    restart: unless-stopped
+
   backend:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
     container_name: vinagrete-backend
     ports:
       - "8000:8000"
     volumes:
-      - db-data:/app
+      - ./data:/app/data
     environment:
-      - DATABASE_URL=sqlite:///./vinagrete.db
+      - DATABASE_URL=sqlite:////app/data/app.db
     restart: unless-stopped
-
-  frontend:
-    build: ./frontend
-    container_name: vinagrete-frontend
-    ports:
-      - "80:80"
-    depends_on:
-      - backend
-    restart: unless-stopped
-
-volumes:
-  db-data:
