@@ -4,7 +4,7 @@ import serial
 
 from inference.pipeline import InspectionPipeline
 
-PORT: str = "/dev/ttyAMA0"  # Porta serial para comunicação com o ESP32-S3
+PORT: str = "/dev/ttyUSB0"  # Porta serial para comunicação com o ESP32-S3
 
 
 class SerialCommunicator:
