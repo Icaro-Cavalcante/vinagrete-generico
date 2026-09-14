@@ -1,17 +1,13 @@
-version: '3.8'
-
 services:
-
   inference:
     build:
       context: .
       dockerfile: Dockerfile.inference
     container_name: vinagrete-inference
-    privileged: true # needed for raw picamera access
-    devices:
-      - "/dev/ttyUSB0:/dev/ttyUSB0"
-      - "/dev/video0:/dev/video0"
+    privileged: true
     volumes:
+      - /dev:/dev
+      - /run/udev:/run/udev:ro
       - ./data:/app/data
       - ./weights:/app/weights
     environment:
