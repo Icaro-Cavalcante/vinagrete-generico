@@ -3,7 +3,7 @@ import os
 SERIAL_PORT = os.getenv("SERIAL_PORT", "/dev/ttyUSB0")
 BAUD_RATE = int(os.getenv("BAUD_RATE", 115200))
 MODEL_PATH = os.getenv("MODEL_PATH", "weights/best.pt")
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:////app/data/app.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:////app/data/vinagrete.db")
 
 # Motion/ROI settings
 # Example values, can be overridden by env variables if desired

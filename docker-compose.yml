@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+
   inference:
     build:
       context: .
@@ -9,12 +10,12 @@ services:
     privileged: true # needed for raw picamera access
     devices:
       - "/dev/ttyUSB0:/dev/ttyUSB0"
-      # - "/dev/video0:/dev/video0" # alternatively, use specific video/media nodes
+      # - "/dev/video0:/dev/video0"
     volumes:
       - ./data:/app/data
     environment:
       - SERIAL_PORT=/dev/ttyUSB0
-      - DATABASE_URL=sqlite:////app/data/app.db
+      - DATABASE_URL=sqlite:////app/data/vinagrete.db
     restart: unless-stopped
 
   backend:
@@ -27,5 +28,5 @@ services:
     volumes:
       - ./data:/app/data
     environment:
-      - DATABASE_URL=sqlite:////app/data/app.db
+      - DATABASE_URL=sqlite:////app/data/vinagrete.db
     restart: unless-stopped
