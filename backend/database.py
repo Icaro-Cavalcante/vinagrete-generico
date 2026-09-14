@@ -6,14 +6,14 @@ Para trocar de SQLite para PostgreSQL, basta alterar DATABASE_URL:
 """
 
 import os
+import sys
+
+# Adiciona o diretório raiz ao sys.path para importar config
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from config import DATABASE_URL
 
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import declarative_base, sessionmaker
-
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "sqlite:///./vinagrete.db",
-)
 
 # ---------- Engine ----------
 connect_args = {}
@@ -30,6 +30,7 @@ if DATABASE_URL.startswith("sqlite"):
         cursor = dbapi_conn.cursor()
         cursor.execute("PRAGMA journal_mode=WAL;")
         cursor.execute("PRAGMA foreign_keys=ON;")
+        cursor.execute("PRAGMA busy_timeout=5000;")
         cursor.close()
 
 

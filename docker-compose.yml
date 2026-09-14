@@ -1,23 +1,31 @@
 services:
+  inference:
+    build:
+      context: .
+      dockerfile: Dockerfile.inference
+    container_name: vinagrete-inference
+    ipc: host
+    privileged: true
+    volumes:
+      - /dev:/dev
+      - /run/udev:/run/udev:ro
+      - ./data:/app/data
+      - ./weights:/app/weights
+    environment:
+      - PYTHONUNBUFFERED=1
+      - SERIAL_PORT=/dev/ttyUSB0
+      - DATABASE_URL=sqlite:////app/data/vinagrete.db
+    restart: unless-stopped
+
   backend:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
     container_name: vinagrete-backend
     ports:
       - "8000:8000"
     volumes:
-      - db-data:/app
+      - ./data:/app/data
     environment:
-      - DATABASE_URL=sqlite:///./vinagrete.db
+      - DATABASE_URL=sqlite:////app/data/vinagrete.db
     restart: unless-stopped
-
-  frontend:
-    build: ./frontend
-    container_name: vinagrete-frontend
-    ports:
-      - "80:80"
-    depends_on:
-      - backend
-    restart: unless-stopped
-
-volumes:
-  db-data:

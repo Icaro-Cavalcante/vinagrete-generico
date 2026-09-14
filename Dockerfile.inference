@@ -1,0 +1,31 @@
+FROM python:3.11-slim-bookworm
+
+# Adiciona o repositório da Raspberry Pi com [trusted=yes] para ignorar a verificação da chave SHA-1 legada
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    gnupg \
+    && echo "deb [trusted=yes] http://archive.raspberrypi.com/debian/ bookworm main" > /etc/apt/sources.list.d/raspi.list \
+    && apt-get update && apt-get install -y --no-install-recommends \
+    python3-pip \
+    python3-libcamera \
+    python3-picamera2 \
+    libcamera-dev \
+    gstreamer1.0-tools \
+    gstreamer1.0-plugins-good \
+    gstreamer1.0-plugins-bad \
+    libgstreamer1.0-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install Python dependencies
+COPY requirements-inference.txt .
+RUN pip install --no-cache-dir -r requirements-inference.txt
+
+# Copy the application code
+COPY . .
+
+# Unifica o diretório da aplicação e os módulos APT do sistema
+ENV PYTHONPATH="/app:/usr/lib/python3/dist-packages"
+
+CMD ["python", "-m", "inference.serial_handler"]

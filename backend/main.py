@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
-from crud import (
+from .crud import (
     UPLOAD_DIR,
     encerrar_lote,
     iniciar_lote,
@@ -22,8 +22,8 @@ from crud import (
     registrar_inspecao,
     registrar_inspecao_com_dados,
 )
-from database import Base, engine, get_db
-from schemas import (
+from .database import Base, engine, get_db
+from .schemas import (
     DashboardSummary,
     InspecaoRegistrar,
     LoteIniciarOut,

@@ -8,7 +8,12 @@ from backend.crud import registrar_inspecao_com_dados
 from backend.database import SessionLocal  # Gerenciador de sessões do SQLAlchemy
 
 from .camera import CameraController
-from .detector import MODEL_PATH, YOLOInference
+from .detector import YOLOInference
+
+import os
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from config import MODEL_PATH
 
 
 def frame_to_base64(frame: np.ndarray) -> str:
