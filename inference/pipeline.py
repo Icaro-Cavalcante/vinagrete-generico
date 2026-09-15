@@ -13,7 +13,7 @@ from .camera import CameraController
 from .detector import YOLOInference
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import CROP_TO_ROI, MODEL_PATH, ROI_DIMENSIONS
+from config import CROP_TO_ROI, INFERENCE_IMAGE_SIZE, MODEL_PATH, ROI_DIMENSIONS
 
 
 def frame_to_base64(frame: np.ndarray) -> str:
@@ -40,7 +40,7 @@ class InspectionPipeline:
         if image is None:
             return True
 
-        # 2. Recorta a ROI centralizada na imagem se habilitado
+        # 2. Processa a imagem de acordo com CROP_TO_ROI
         if CROP_TO_ROI:
             h, w = image.shape[:2]
             roi_w, roi_h = ROI_DIMENSIONS
@@ -52,7 +52,7 @@ class InspectionPipeline:
 
             inference_img = image[y1:y2, x1:x2]
         else:
-            inference_img = image
+            inference_img = cv2.resize(image, INFERENCE_IMAGE_SIZE)
 
         # 3. Predição com Ultralytics YOLO
         result = self.detector.predict(inference_img)

@@ -31,3 +31,6 @@ CAMERA_FRAMERATE = 60
 ROI_DIMENSIONS = (400, 400) # (width, height)
 MIN_CONTOUR_AREA = int(os.getenv("MIN_CONTOUR_AREA", 500))
 BG_SUBTRACTOR_THRESHOLD = int(os.getenv("BG_SUBTRACTOR_THRESHOLD", 16))
+
+# Tamanho da imagem enviada para a inferência/armazenamento quando CROP_TO_ROI for False
+INFERENCE_IMAGE_SIZE = (640, 640)  # (width, height)
