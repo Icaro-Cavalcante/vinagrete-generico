@@ -30,8 +30,6 @@ static const char *TAG = "ESTEIRA";
 #define UART_BAUD_RATE  115200
 #define BUF_SIZE        1024
 
-/* Estado global do sistema e motor */
-static bool sys_on = false;
 /* Estado global do sistema, motor e alerta */
 static bool sys_on = false;
 static bool motor_ligado = false;
@@ -119,13 +117,11 @@ static void uart_init(void)
     };
     uart_driver_install(UART_PORT, BUF_SIZE * 2, 0, 0, NULL, 0);
     uart_param_config(UART_PORT, &uart_config);
-    uart_set_pin(UART_PORT, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-    uart_set_pin(UART_PORT, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+    uart_set_pin(UART_PORT, UART_TX_PIN, UART_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
 }
 
 static void gpio_config_init(void)
 {
-    // Configura pinos de saída: motor, LED e buzzer
     // Configura pinos de saída: motor, LED e buzzer
     gpio_config_t saida_cfg = {
         .pin_bit_mask = (1ULL << GPIO_MOTOR) | (1ULL << GPIO_LED) | (1ULL << GPIO_BUZZER),
@@ -137,7 +133,6 @@ static void gpio_config_init(void)
     gpio_config(&saida_cfg);
 
     // Configura pino da botoeira como entrada com pull-up interno (ativo em LOW)
-    // Configura pino da botoeira como entrada com pull-up interno (ativo em LOW)
     gpio_config_t entrada_cfg = {
         .pin_bit_mask = (1ULL << GPIO_BOTOEIRA),
         .mode = GPIO_MODE_INPUT,
@@ -148,17 +143,11 @@ static void gpio_config_init(void)
     gpio_config(&entrada_cfg);
 
     // Garante tudo desligado na inicialização
-    // Garante tudo desligado na inicialização
     gpio_set_level(GPIO_LED, 0);
     gpio_set_level(GPIO_BUZZER, 0);
     motor_set(false);
 }
 
-/*
- * Task responsável por ler a botoeira com debounce e alternar (toggle)
- * o estado do motor a cada aperto válido, disparando a sinalização
- * de LED + buzzer correspondente.
- */
 /*
  * Task responsável por ler a botoeira com debounce e alternar (toggle)
  * o estado do motor a cada aperto válido, disparando a sinalização
@@ -174,7 +163,6 @@ static void botoeira_task(void *arg)
     while (1) {
         int nivel_atual = gpio_get_level(GPIO_BOTOEIRA);
 
-
         if (nivel_atual == nivel_anterior) {
             contador_estavel_ms += POLL_DELAY_MS;
         } else {
@@ -183,22 +171,17 @@ static void botoeira_task(void *arg)
         }
 
         // Sinal estável por tempo suficiente -> atualiza estado "debounced"
-        // Sinal estável por tempo suficiente -> atualiza estado "debounced"
         if (contador_estavel_ms >= DEBOUNCE_MS && nivel_atual != nivel_estavel) {
             nivel_estavel = nivel_atual;
 
-
             if (nivel_estavel == 0 && !aguardando_liberar) {
-                system_toggle();
                 system_toggle();
                 aguardando_liberar = true;
             } else if (nivel_estavel == 1) {
                 // Botão solto: libera para o próximo aperto
-                // Botão solto: libera para o próximo aperto
                 aguardando_liberar = false;
             }
         }
-
 
         vTaskDelay(pdMS_TO_TICKS(POLL_DELAY_MS));
     }
@@ -207,7 +190,6 @@ static void botoeira_task(void *arg)
 /* Escuta comandos vindos da Raspberry Pi 5 */
 static void uart_rx_task(void *arg)
 {
-    static uint8_t data[BUF_SIZE];
     static uint8_t data[BUF_SIZE];
     while (1) {
         int len = uart_read_bytes(UART_PORT, data, BUF_SIZE - 1, pdMS_TO_TICKS(100));
@@ -241,7 +223,6 @@ static void uart_rx_task(void *arg)
 void app_main(void)
 {
     ESP_LOGI(TAG, "Iniciando controle da esteira...");
-
 
     gpio_config_init();
     uart_init();
