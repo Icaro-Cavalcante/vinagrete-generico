@@ -9,17 +9,11 @@ import numpy as np
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
-    from config import (
-        BG_SUBTRACTOR_THRESHOLD,
-        MIN_CONTOUR_AREA,
-        ROI_X_BOUNDS,
-        ROI_Y_BOUNDS,
-    )
+    from config import BG_SUBTRACTOR_THRESHOLD, MIN_CONTOUR_AREA, ROI_DIMENSIONS
 except ImportError:
-    ROI_X_BOUNDS = (450, 900)
-    ROI_Y_BOUNDS = (0, 972)
-    MIN_CONTOUR_AREA = 8000
-    BG_SUBTRACTOR_THRESHOLD = 16
+    ROI_DIMENSIONS = (440, 972)
+    MIN_CONTOUR_AREA = 500
+    BG_SUBTRACTOR_THRESHOLD = 50
 
 
 class ItemState(Enum):
@@ -31,16 +25,12 @@ class ItemState(Enum):
 class MotionDetector:
     def __init__(
         self,
-        roi_x_bounds=ROI_X_BOUNDS,
-        roi_y_bounds=ROI_Y_BOUNDS,
+        roi_dimensions=ROI_DIMENSIONS,
         min_contour_area=MIN_CONTOUR_AREA,
         bg_subtractor_threshold=BG_SUBTRACTOR_THRESHOLD,
         min_exit_time_sec=1.2,  # Tempo mínimo para ignorar re-disparos na saída
     ):
-        self.roi_x_start = roi_x_bounds[0]
-        self.roi_x_end = roi_x_bounds[1]
-        self.roi_y_start = roi_y_bounds[0]
-        self.roi_y_end = roi_y_bounds[1]
+        self.roi_dimensions = roi_dimensions
 
         self.min_contour_area = min_contour_area
         self.min_exit_time_sec = min_exit_time_sec
@@ -70,10 +60,16 @@ class MotionDetector:
             return False
 
         h, w = frame.shape[:2]
-        x_start = max(0, min(self.roi_x_start, w))
-        x_end = max(0, min(self.roi_x_end, w))
-        y_start = max(0, min(self.roi_y_start, h))
-        y_end = max(0, min(self.roi_y_end, h))
+        
+        roi_w, roi_h = self.roi_dimensions
+        roi_w = min(roi_w, w)
+        roi_h = min(roi_h, h)
+        
+        x_center, y_center = w // 2, h // 2
+        x_start = x_center - roi_w // 2
+        x_end = x_start + roi_w
+        y_start = y_center - roi_h // 2
+        y_end = y_start + roi_h
 
         if x_start >= x_end or y_start >= y_end:
             return False
