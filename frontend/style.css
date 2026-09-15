@@ -36,11 +36,24 @@
 /* Correção de tonalidade de cor invertida (swap de canais BGR -> RGB) */
 .card-img-fix {
   filter: url(#color-fix-bgr);
+  filter: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg"><filter id="f" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0 0 1 0 0 0 1 0 0 0 1 0 0 0 0 0 0 0 1 0"/></filter></svg>#f');
 }
 
 /* Transição do modal */
 #modal-imagem.flex {
   animation: fadeIn 0.2s ease-out forwards;
+}
+
+#modal-container:fullscreen {
+  max-width: 100vw;
+  max-height: 100vh;
+  width: 100vw;
+  height: 100vh;
+  border-radius: 0;
+}
+
+#modal-container:fullscreen #modal-img {
+  max-height: 80vh;
 }
 
 @keyframes fadeIn {

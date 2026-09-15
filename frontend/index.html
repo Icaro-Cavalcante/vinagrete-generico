@@ -12,7 +12,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   
   <!-- CSS Personalizado -->
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=2.2">
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans antialiased">
 
@@ -179,8 +179,8 @@
   </main>
 
   <!-- Filtro SVG para correção de tonalidade de cor invertida (swap de canais BGR -> RGB) -->
-  <svg class="hidden" style="position: absolute; width: 0; height: 0; pointer-events: none;" aria-hidden="true">
-    <filter id="color-fix-bgr">
+  <svg style="position: absolute; width: 0; height: 0; pointer-events: none; opacity: 0; overflow: hidden;" aria-hidden="true">
+    <filter id="color-fix-bgr" color-interpolation-filters="sRGB">
       <feColorMatrix type="matrix" values="
         0 0 1 0 0
         0 1 0 0 0
@@ -190,8 +190,8 @@
   </svg>
 
   <!-- MODAL DE VISUALIZAÇÃO EM TELA CHEIA COM DETALHES -->
-  <div id="modal-imagem" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 hidden items-center justify-center p-4 transition-all duration-300" onclick="fecharModalDefeito(event)">
-    <div id="modal-container" class="bg-slate-900 border border-slate-700 rounded-2xl max-w-4xl w-full overflow-hidden shadow-2xl flex flex-col max-h-[92vh]" onclick="event.stopPropagation()">
+  <div id="modal-imagem" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 hidden items-center justify-center p-2 sm:p-4 transition-all duration-300" onclick="fecharModalDefeito(event)">
+    <div id="modal-container" class="bg-slate-900 border border-slate-700 rounded-2xl max-w-4xl w-full overflow-hidden shadow-2xl flex flex-col max-h-[95vh]" onclick="event.stopPropagation()">
       <!-- Header do Modal -->
       <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
         <div class="flex items-center gap-3">
@@ -216,8 +216,8 @@
       </div>
 
       <!-- Imagem em Alta Resolução com correção de cor -->
-      <div class="p-4 bg-slate-950 flex items-center justify-center overflow-auto flex-1 min-h-[300px] max-h-[65vh]">
-        <img id="modal-img" src="" alt="Carta Defeituosa" class="card-img-fix max-h-[60vh] max-w-full object-contain rounded-lg border border-slate-800/80 shadow-xl transition-transform duration-300 hover:scale-105">
+      <div class="p-4 bg-slate-950 flex items-center justify-center overflow-auto flex-1 min-h-[300px] max-h-[70vh]">
+        <img id="modal-img" src="" alt="Carta Defeituosa" onclick="toggleTelaCheia()" class="card-img-fix max-h-[65vh] max-w-full object-contain rounded-lg border border-slate-800/80 shadow-xl cursor-pointer transition-transform duration-300 hover:scale-105" title="Clique para alternar tela cheia">
       </div>
 
       <!-- Painel Inferior de Detalhes -->
@@ -248,6 +248,6 @@
   </footer>
 
   <!-- JavaScript Principal -->
-  <script src="script.js"></script>
+  <script src="script.js?v=2.2"></script>
 </body>
 </html>

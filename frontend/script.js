@@ -33,6 +33,7 @@ function traduzirDefeito(tipo) {
 // Estado Global da Aplicação
 let chartInstance = null;
 let currentLoteId = null;
+let currentDefects = [];
 
 // Inicialização da Aplicação ao Carregar a Página
 document.addEventListener("DOMContentLoaded", () => {
@@ -46,7 +47,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // 1. Inicialização do Chart.js para Erros por Lote (X: Lote, Y: Cartas Defeituosas)
 function initChart() {
-  const ctx = document.getElementById("chart-defetos").getContext("2d");
+  const canvas = document.getElementById("chart-defetos");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
   
   chartInstance = new Chart(ctx, {
     type: "bar",
@@ -55,7 +58,7 @@ function initChart() {
       datasets: [{
         label: "Cartas Defeituosas",
         data: [],
-        backgroundColor: "rgba(244, 63, 94, 0.6)", // Rose Tailwind
+        backgroundColor: "rgba(244, 63, 94, 0.7)", // Rose Tailwind
         borderColor: "rgba(244, 63, 94, 1)",
         borderWidth: 1.5,
         borderRadius: 4
@@ -68,6 +71,9 @@ function initChart() {
         legend: { display: false },
         tooltip: {
           callbacks: {
+            title: function(context) {
+              return context[0].label;
+            },
             label: function(context) {
               return ` ${context.raw} cartas defeituosas`;
             }
@@ -82,7 +88,7 @@ function initChart() {
             display: true,
             text: "Lote",
             color: "#64748b",
-            font: { size: 11 }
+            font: { size: 11, weight: "bold" }
           }
         },
         y: {
@@ -93,7 +99,7 @@ function initChart() {
             display: true,
             text: "Cartas Defeituosas",
             color: "#64748b",
-            font: { size: 11 }
+            font: { size: 11, weight: "bold" }
           }
         }
       }
@@ -112,7 +118,7 @@ async function fetchDashboardData() {
     updateLoteUI(data.lote);
     updateSistemaUI(data.sistema);
     updateDefectsFeedUI(data.ultimos_defeitos);
-    updateChartUI(data.defeitos_por_lote || data.defeitos_por_horario, data.lote);
+    updateChartUI(data.defeitos_por_lote);
     
     setConnectionStatus(true);
   } catch (error) {
@@ -187,27 +193,24 @@ function updateSistemaUI(sistema) {
   }
 }
 
-// Array em memória para referenciar os defeitos exibidos no feed
-let currentDefects = [];
-
 // 5. Renderiza o Feed de Fotos de Cartas Defeituosas
 function updateDefectsFeedUI(defects) {
   const container = document.getElementById("defects-feed");
+  if (!container) return;
   container.innerHTML = "";
   currentDefects = defects || [];
 
   if (!defects || defects.length === 0) {
     container.innerHTML = `
       <div class="col-span-full py-8 text-center text-slate-500 text-xs">
-        Nenhum defeito registrado no lote ativo.
+        Nenhum defeito registrado no sistema.
       </div>`;
     return;
   }
 
   defects.forEach((defect, index) => {
     const timeFormatted = new Date(defect.timestamp).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    const confPercent = (defect.grau_confiabilidade * 100).toFixed(0);
-
+    const confPercent = defect.grau_confiabilidade != null ? (defect.grau_confiabilidade * 100).toFixed(0) : "--";
     const nomeTraduzido = traduzirDefeito(defect.tipo_defeito);
 
     const cardHtml = `
@@ -236,15 +239,12 @@ function updateDefectsFeedUI(defects) {
 }
 
 // 6. Atualiza os Dados do Gráfico de Erros por Lote (X: Lote, Y: Cartas Defeituosas)
-function updateChartUI(dataPoints, loteAtivo) {
+function updateChartUI(defeitosPorLote) {
   if (!chartInstance) return;
 
-  if (Array.isArray(dataPoints) && dataPoints.length > 0) {
-    chartInstance.data.labels = dataPoints.map(p => p.lote || p.horario || "Lote");
-    chartInstance.data.datasets[0].data = dataPoints.map(p => p.cartas_defeituosas ?? p.quantidade ?? 0);
-  } else if (loteAtivo && loteAtivo.id) {
-    chartInstance.data.labels = [`Lote #${loteAtivo.id}`];
-    chartInstance.data.datasets[0].data = [loteAtivo.cartas_defeituosas || 0];
+  if (Array.isArray(defeitosPorLote) && defeitosPorLote.length > 0) {
+    chartInstance.data.labels = defeitosPorLote.map(d => d.lote || `Lote #${d.id}`);
+    chartInstance.data.datasets[0].data = defeitosPorLote.map(d => d.cartas_defeituosas || 0);
   } else {
     chartInstance.data.labels = ["Nenhum Lote"];
     chartInstance.data.datasets[0].data = [0];
@@ -258,7 +258,7 @@ function abrirModalDefeito(index) {
   if (!defect) return;
 
   const nomeTraduzido = traduzirDefeito(defect.tipo_defeito);
-  const confPercent = (defect.grau_confiabilidade * 100).toFixed(0);
+  const confPercent = defect.grau_confiabilidade != null ? (defect.grau_confiabilidade * 100).toFixed(0) : "--";
   const timeFormatted = new Date(defect.timestamp).toLocaleString("pt-BR", {
     day: '2-digit',
     month: '2-digit',
@@ -287,8 +287,9 @@ function fecharModalDefeito(event) {
   if (event && event.target && event.target.id !== "modal-imagem" && !event.target.closest("button")) {
     return;
   }
-  if (document.fullscreenElement) {
-    document.exitFullscreen().catch(() => {});
+  if (document.fullscreenElement || document.webkitFullscreenElement) {
+    if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
   }
   const modal = document.getElementById("modal-imagem");
   modal.classList.add("hidden");
@@ -299,18 +300,39 @@ function fecharModalDefeito(event) {
 function toggleTelaCheia() {
   const container = document.getElementById("modal-container");
   const icon = document.getElementById("icon-fullscreen");
-  if (!document.fullscreenElement) {
-    container.requestFullscreen().then(() => {
-      icon.setAttribute("data-lucide", "minimize-2");
-      lucide.createIcons();
-    }).catch(err => console.error("Erro ao entrar em tela cheia:", err));
+  
+  const isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+
+  if (!isFullscreen) {
+    const requestFs = container.requestFullscreen || container.webkitRequestFullscreen || container.mozRequestFullScreen || container.msRequestFullscreen;
+    if (requestFs) {
+      requestFs.call(container).then(() => {
+        if (icon) icon.setAttribute("data-lucide", "minimize-2");
+        lucide.createIcons();
+      }).catch(err => console.error("Erro ao entrar em tela cheia:", err));
+    }
   } else {
-    document.exitFullscreen().then(() => {
-      icon.setAttribute("data-lucide", "maximize-2");
-      lucide.createIcons();
-    }).catch(err => console.error("Erro ao sair da tela cheia:", err));
+    const exitFs = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+    if (exitFs) {
+      exitFs.call(document).then(() => {
+        if (icon) icon.setAttribute("data-lucide", "maximize-2");
+        lucide.createIcons();
+      }).catch(err => console.error("Erro ao sair da tela cheia:", err));
+    }
   }
 }
+
+// Evento do navegador ao alternar tela cheia
+document.addEventListener("fullscreenchange", () => {
+  const icon = document.getElementById("icon-fullscreen");
+  if (!icon) return;
+  if (document.fullscreenElement) {
+    icon.setAttribute("data-lucide", "minimize-2");
+  } else {
+    icon.setAttribute("data-lucide", "maximize-2");
+  }
+  lucide.createIcons();
+});
 
 // Fechar modal ao pressionar ESC
 document.addEventListener("keydown", (e) => {
@@ -350,3 +372,10 @@ function setConnectionStatus(isOnline) {
     text.className = "text-xs text-rose-400 font-medium";
   }
 }
+
+// Expor funções globais no window
+window.abrirModalDefeito = abrirModalDefeito;
+window.fecharModalDefeito = fecharModalDefeito;
+window.toggleTelaCheia = toggleTelaCheia;
+window.toggleLote = toggleLote;
+window.traduzirDefeito = traduzirDefeito;
