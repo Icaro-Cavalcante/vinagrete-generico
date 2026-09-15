@@ -13,7 +13,7 @@ from .camera import CameraController
 from .detector import YOLOInference
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import CROP_TO_ROI, MODEL_PATH, ROI_X_BOUNDS, ROI_Y_BOUNDS
+from config import CROP_TO_ROI, MODEL_PATH, ROI_DIMENSIONS
 
 
 def frame_to_base64(frame: np.ndarray) -> str:
@@ -40,17 +40,17 @@ class InspectionPipeline:
         if image is None:
             return True
 
-        # 2. Recorta para a ROI da esteira se habilitado (elimina ruídos da mesa/suporte)
+        # 2. Recorta a ROI centralizada na imagem se habilitado
         if CROP_TO_ROI:
             h, w = image.shape[:2]
-            x1 = max(0, min(ROI_X_BOUNDS[0], w))
-            x2 = max(0, min(ROI_X_BOUNDS[1], w))
-            y1 = max(0, min(ROI_Y_BOUNDS[0], h))
-            y2 = max(0, min(ROI_Y_BOUNDS[1], h))
-            if x1 < x2 and y1 < y2:
-                inference_img = image[y1:y2, x1:x2]
-            else:
-                inference_img = image
+            roi_w, roi_h = ROI_DIMENSIONS
+
+            x1 = max(0, (w - roi_w) // 2)
+            x2 = min(w, x1 + roi_w)
+            y1 = max(0, (h - roi_h) // 2)
+            y2 = min(h, y1 + roi_h)
+
+            inference_img = image[y1:y2, x1:x2]
         else:
             inference_img = image
 
