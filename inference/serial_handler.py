@@ -4,12 +4,23 @@ import time
 
 import serial
 
+from backend.crud import encerrar_lote, iniciar_lote
+from backend.database import SessionLocal
 from inference.motion_detector import MotionDetector
 from inference.pipeline import InspectionPipeline
 
 # Adiciona o diretório raiz ao sys.path para importar config
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import BAUD_RATE, SERIAL_PORT
+from config import (
+    BAUD_RATE,
+    CMD_ALERT,
+    CMD_START,
+    CMD_STOP,
+    CMD_SYS_OFF,
+    CMD_SYS_ON,
+    DEFECT_ALERT_THRESHOLD,
+    SERIAL_PORT,
+)
 
 
 class SerialCommunicator:
@@ -24,8 +35,8 @@ class SerialCommunicator:
         except Exception as e:
             print(f"[SERIAL ERRO] Falha ao enviar comando {cmd.strip()}: {e}")
 
-    def send_defect_alert(self):
-        self.send_command("DEFECT\n")
+    def send_alert(self):
+        self.send_command(CMD_ALERT)
 
     def read_line(self) -> str:
         try:
@@ -48,8 +59,9 @@ def run_inference_service(port: str = SERIAL_PORT):
     pipeline = InspectionPipeline()
     motion_detector = MotionDetector()
 
-    print("[SERVIÇO] Sistema pronto. Aguardando comando SYS_ON do ESP32-S3...")
+    print(f"[SERVIÇO] Sistema pronto. Aguardando comando {CMD_SYS_ON} do ESP32-S3...")
     sys_on = False
+    consecutive_defects = 0
 
     try:
         while True:
@@ -58,19 +70,47 @@ def run_inference_service(port: str = SERIAL_PORT):
                 line = communicator.read_line()
                 if not line:
                     break
-                if "SYS_ON" in line:
+                if CMD_SYS_ON in line:
                     if not sys_on:
                         sys_on = True
-                        print("[SERVIÇO] Sistema ATIVO. Aguardando estabilização da esteira...")
+                        consecutive_defects = 0
+
+                        # Inicia novo lote no banco de dados ao ligar o sistema
+                        db = SessionLocal()
+                        try:
+                            lote = iniciar_lote(db)
+                            print(f"[BANCO] Novo lote iniciado (ID #{lote.id}).")
+                        finally:
+                            db.close()
+
+                        print(
+                            "[SERVIÇO] Sistema ATIVO. Aguardando estabilização da esteira..."
+                        )
                         time.sleep(1.0)
                         # Descarta quadros de aceleração inicial da esteira
                         for _ in range(10):
                             pipeline.camera.capture_frame()
                             time.sleep(0.02)
                         print("[SERVIÇO] Esteira estabilizada. Monitorando ROI.")
-                elif "SYS_OFF" in line:
-                    sys_on = False
-                    print("[SERVIÇO] Sistema INATIVO. Aguardando SYS_ON.")
+
+                elif CMD_SYS_OFF in line:
+                    if sys_on:
+                        sys_on = False
+                        consecutive_defects = 0
+
+                        # Encerra o lote ativo no banco de dados ao desligar o sistema
+                        db = SessionLocal()
+                        try:
+                            lote = encerrar_lote(db)
+                            if lote:
+                                print(
+                                    f"[BANCO] Lote ID #{lote.id} encerrado com sucesso."
+                                )
+                        finally:
+                            db.close()
+
+                        print(f"[SERVIÇO] Sistema INATIVO. Aguardando {CMD_SYS_ON}.")
+
                 else:
                     print(f"[ESP32] {line}")
 
@@ -84,25 +124,34 @@ def run_inference_service(port: str = SERIAL_PORT):
 
                     # 1. Trava o aprendizado do fundo (MOG2) e envia STOP
                     motion_detector.set_belt_moving(False)
-                    communicator.send_command("STOP\n")
+                    communicator.send_command(CMD_STOP)
                     time.sleep(0.3)  # Pequeno atraso para frenagem mecânica
 
                     # 2 & 3. Processa inferência YOLO e salva no banco de dados
                     is_conforme = pipeline.process_trigger()
 
                     if not is_conforme:
-                        # 4. Envia alerta de defeito
-                        communicator.send_defect_alert()
+                        consecutive_defects += 1
                         print(
-                            "[INSPEÇÃO] Reprovado -> Sinal 'DEFECT' enviado ao ESP32-S3."
+                            f"[INSPEÇÃO] Reprovado ({consecutive_defects}/{DEFECT_ALERT_THRESHOLD})."
                         )
+
+                        # Dispara o alerta apenas ao atingir o limite configurado
+                        if consecutive_defects >= DEFECT_ALERT_THRESHOLD:
+                            communicator.send_alert()
+                            print(
+                                f"[ALERTA] Limite de {DEFECT_ALERT_THRESHOLD} falhas atingido -> Sinal '{CMD_ALERT.strip()}' enviado ao ESP32-S3."
+                            )
+                            consecutive_defects = 0
+
                         time.sleep(1.0)
                     else:
+                        consecutive_defects = 0
                         print("[INSPEÇÃO] Aprovado.")
 
                     # 5. Envia START, altera estado para EXITING e destrava o MOG2
-                    communicator.send_command("START\n")
-                    print("[VISÃO] Retomando esteira (START).")
+                    communicator.send_command(CMD_START)
+                    print(f"[VISÃO] Retomando esteira ({CMD_START.strip()}).")
 
                     motion_detector.reset_to_exiting()
                     motion_detector.set_belt_moving(True)
@@ -120,6 +169,13 @@ def run_inference_service(port: str = SERIAL_PORT):
     except KeyboardInterrupt:
         print("\n[SERVIÇO] Desconectando hardware e encerrando serviço...")
     finally:
+        # Garante o encerramento de qualquer lote pendente no encerramento abrupto do serviço
+        db = SessionLocal()
+        try:
+            encerrar_lote(db)
+        finally:
+            db.close()
+
         communicator.close()
         pipeline.close()
 
