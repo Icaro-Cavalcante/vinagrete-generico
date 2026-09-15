@@ -26,6 +26,8 @@ CROP_TO_ROI = os.getenv("CROP_TO_ROI", "False").lower() in ("true", "1", "yes")
 CAMERA_INDEX = 0
 CAMERA_RESOLUTION = (1296, 972)
 CAMERA_FRAMERATE = 60
+# Rotação da câmera em graus (0, 90, 180, 270) para alinhar a orientação das cartas com o modelo YOLO
+CAMERA_ROTATION = int(os.getenv("CAMERA_ROTATION", "270"))
 
 # MotionROI settings
 ROI_DIMENSIONS = (400, 400) # (width, height)

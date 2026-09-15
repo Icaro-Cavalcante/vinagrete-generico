@@ -1,7 +1,7 @@
 import time
 import cv2
 import numpy as np
-from config import CAMERA_FRAMERATE, CAMERA_INDEX, CAMERA_RESOLUTION
+from config import CAMERA_FRAMERATE, CAMERA_INDEX, CAMERA_RESOLUTION, CAMERA_ROTATION
 
 
 class CameraController:
@@ -16,10 +16,12 @@ class CameraController:
         resolution: tuple = CAMERA_RESOLUTION,
         framerate: int = CAMERA_FRAMERATE,
         device_index: int = CAMERA_INDEX,
+        rotation: int = CAMERA_ROTATION,
     ):
         self.resolution = resolution
         self.framerate = framerate
         self.device_index = device_index
+        self.rotation = rotation
 
         self.use_picam2 = False
         self.picam2 = None
@@ -60,37 +62,47 @@ class CameraController:
         return True
 
     def capture_frame(self) -> np.ndarray | None:
-        """Captura o frame BGR mais recente.
+        """Captura o frame BGR mais recente e aplica a rotação configurada.
 
         Em caso de falhas consecutivas, tenta reconectar ao hardware em vez de
         encerrar a aplicação.
         """
+        frame = None
         if self.use_picam2 and self.picam2:
             rgb_frame = self.picam2.capture_array("main")
-            return rgb_frame[:, :, ::-1]
+            frame = rgb_frame[:, :, ::-1]
+        elif self.cap is not None and self.cap.isOpened():
+            ret, cap_frame = self.cap.read()
+            if not ret or cap_frame is None:
+                self.consecutive_failures += 1
+                print(
+                    f"[CÂMERA] Aviso: Falha na leitura do frame ({self.consecutive_failures}/{self.max_failures})."
+                )
 
-        if self.cap is None or not self.cap.isOpened():
+                # Tenta reconectar a câmera se ultrapassar o limite de falhas
+                if self.consecutive_failures >= self.max_failures:
+                    print(
+                        "[CÂMERA] Múltiplas falhas detectadas. Reinicializando o driver V4L2..."
+                    )
+                    self.consecutive_failures = 0
+                    self._init_opencv()
+
+                return None
+
+            self.consecutive_failures = 0
+            frame = cap_frame
+        else:
             self._init_opencv()
             return None
 
-        ret, frame = self.cap.read()
-        if not ret or frame is None:
-            self.consecutive_failures += 1
-            print(
-                f"[CÂMERA] Aviso: Falha na leitura do frame ({self.consecutive_failures}/{self.max_failures})."
-            )
+        if frame is not None and self.rotation != 0:
+            if self.rotation == 90:
+                frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
+            elif self.rotation == 180:
+                frame = cv2.rotate(frame, cv2.ROTATE_180)
+            elif self.rotation == 270:
+                frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
-            # Tenta reconectar a câmera se ultrapassar o limite de falhas
-            if self.consecutive_failures >= self.max_failures:
-                print(
-                    "[CÂMERA] Múltiplas falhas detectadas. Reinicializando o driver V4L2..."
-                )
-                self.consecutive_failures = 0
-                self._init_opencv()
-
-            return None
-
-        self.consecutive_failures = 0
         return frame
 
     def close(self):
