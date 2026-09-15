@@ -4,6 +4,8 @@ import time
 
 import serial
 
+from backend.crud import encerrar_lote, iniciar_lote
+from backend.database import SessionLocal
 from inference.motion_detector import MotionDetector
 from inference.pipeline import InspectionPipeline
 
@@ -72,6 +74,15 @@ def run_inference_service(port: str = SERIAL_PORT):
                     if not sys_on:
                         sys_on = True
                         consecutive_defects = 0
+
+                        # Inicia novo lote no banco de dados ao ligar o sistema
+                        db = SessionLocal()
+                        try:
+                            lote = iniciar_lote(db)
+                            print(f"[BANCO] Novo lote iniciado (ID #{lote.id}).")
+                        finally:
+                            db.close()
+
                         print(
                             "[SERVIÇO] Sistema ATIVO. Aguardando estabilização da esteira..."
                         )
@@ -81,10 +92,25 @@ def run_inference_service(port: str = SERIAL_PORT):
                             pipeline.camera.capture_frame()
                             time.sleep(0.02)
                         print("[SERVIÇO] Esteira estabilizada. Monitorando ROI.")
+
                 elif CMD_SYS_OFF in line:
-                    sys_on = False
-                    consecutive_defects = 0
-                    print(f"[SERVIÇO] Sistema INATIVO. Aguardando {CMD_SYS_ON}.")
+                    if sys_on:
+                        sys_on = False
+                        consecutive_defects = 0
+
+                        # Encerra o lote ativo no banco de dados ao desligar o sistema
+                        db = SessionLocal()
+                        try:
+                            lote = encerrar_lote(db)
+                            if lote:
+                                print(
+                                    f"[BANCO] Lote ID #{lote.id} encerrado com sucesso."
+                                )
+                        finally:
+                            db.close()
+
+                        print(f"[SERVIÇO] Sistema INATIVO. Aguardando {CMD_SYS_ON}.")
+
                 else:
                     print(f"[ESP32] {line}")
 
@@ -143,6 +169,13 @@ def run_inference_service(port: str = SERIAL_PORT):
     except KeyboardInterrupt:
         print("\n[SERVIÇO] Desconectando hardware e encerrando serviço...")
     finally:
+        # Garante o encerramento de qualquer lote pendente no encerramento abrupto do serviço
+        db = SessionLocal()
+        try:
+            encerrar_lote(db)
+        finally:
+            db.close()
+
         communicator.close()
         pipeline.close()
 
