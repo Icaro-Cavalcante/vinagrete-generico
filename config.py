@@ -19,7 +19,7 @@ CONF_THRESHOLD = float(os.getenv("CONF_THRESHOLD", "0.5"))
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:////app/data/vinagrete.db")
 
 # Recortar a ROI antes de enviar para inferência no modelo YOLO
-CROP_TO_ROI = os.getenv("CROP_TO_ROI", "True").lower() in ("true", "1", "yes")
+CROP_TO_ROI = os.getenv("CROP_TO_ROI", "False").lower() in ("true", "1", "yes")
 
 
 # Câmera
@@ -33,4 +33,4 @@ MIN_CONTOUR_AREA = int(os.getenv("MIN_CONTOUR_AREA", 500))
 BG_SUBTRACTOR_THRESHOLD = int(os.getenv("BG_SUBTRACTOR_THRESHOLD", 16))
 
 # Tamanho da imagem enviada para a inferência/armazenamento quando CROP_TO_ROI for False
-INFERENCE_IMAGE_SIZE = (640, 640)  # (width, height)
+INFERENCE_IMAGE_SIZE = (800, 800)  # (width, height)
