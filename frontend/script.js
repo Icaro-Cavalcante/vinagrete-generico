@@ -104,26 +104,27 @@ async function fetchDashboardData() {
 
 // 3. Atualiza os Cards do Lote Ativo
 function updateLoteUI(lote) {
+  const badgeDot = document.getElementById("lote-status-dot");
+  const badgeText = document.getElementById("lote-status-text");
+
   if (!lote || !lote.id) {
     document.getElementById("lote-id-display").innerText = "Sem Lote Ativo";
-    document.getElementById("btn-toggle-lote").className = "flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm";
-    document.getElementById("text-lote-btn").innerText = "Iniciar Lote";
-    document.getElementById("icon-lote-btn").setAttribute("data-lucide", "play");
-    lucide.createIcons();
+    if (badgeDot && badgeText) {
+      badgeDot.className = "w-2 h-2 rounded-full bg-slate-500";
+      badgeText.innerText = "Aguardando Início";
+    }
     currentLoteId = null;
     return;
   }
 
   currentLoteId = lote.id;
   document.getElementById("lote-id-display").innerText = `#${lote.id}`;
-  
-  // Atualiza botão para Encerrar Lote
-  document.getElementById("btn-toggle-lote").className = "flex items-center gap-2 bg-rose-600 hover:bg-rose-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm";
-  document.getElementById("text-lote-btn").innerText = "Encerrar Lote";
-  document.getElementById("icon-lote-btn").setAttribute("data-lucide", "square");
-  lucide.createIcons();
+  if (badgeDot && badgeText) {
+    badgeDot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
+    badgeText.innerText = `Lote #${lote.id} em Andamento`;
+  }
 
-  // Cálculo de Normais Implicito: Totais - Defeituosas
+  // Cálculo de Normais Implícito: Totais - Defeituosas
   const totais = lote.cartas_totais || 0;
   const defeituosas = lote.cartas_defeituosas || 0;
   const normais = Math.max(0, totais - defeituosas);
@@ -168,10 +169,14 @@ function updateSistemaUI(sistema) {
   }
 }
 
+// Array em memória para referenciar os defeitos exibidos no feed
+let currentDefects = [];
+
 // 5. Renderiza o Feed de Fotos de Cartas Defeituosas
 function updateDefectsFeedUI(defects) {
   const container = document.getElementById("defects-feed");
   container.innerHTML = "";
+  currentDefects = defects || [];
 
   if (!defects || defects.length === 0) {
     container.innerHTML = `
@@ -181,17 +186,20 @@ function updateDefectsFeedUI(defects) {
     return;
   }
 
-  defects.forEach(defect => {
+  defects.forEach((defect, index) => {
     const timeFormatted = new Date(defect.timestamp).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     const confPercent = (defect.grau_confiabilidade * 100).toFixed(0);
 
     const nomeTraduzido = traduzirDefeito(defect.tipo_defeito);
 
     const cardHtml = `
-      <div class="bg-slate-900 border border-slate-700/60 rounded-lg overflow-hidden group hover:border-slate-500 transition">
+      <div onclick="abrirModalDefeito(${index})" class="bg-slate-900 border border-slate-700/60 rounded-lg overflow-hidden group hover:border-indigo-500 hover:scale-[1.02] cursor-pointer transition duration-200 shadow-md">
         <div class="relative h-28 bg-slate-950 flex items-center justify-center overflow-hidden">
           <img src="${defect.imagem}" alt="${nomeTraduzido}" class="object-cover w-full h-full group-hover:scale-105 transition duration-300" onerror="this.src='https://placehold.co/300x200/0f172a/94a3b8?text=Sem+Imagem'">
           <span class="absolute top-2 right-2 badge-confidence">${confPercent}% Conf.</span>
+          <div class="absolute inset-0 bg-indigo-600/0 group-hover:bg-indigo-600/10 flex items-center justify-center transition">
+            <span class="opacity-0 group-hover:opacity-100 bg-slate-900/90 text-white text-[10px] font-semibold px-2 py-1 rounded backdrop-blur border border-slate-700 transition">Ver Completa</span>
+          </div>
         </div>
         <div class="p-2.5">
           <div class="flex items-center justify-between mb-1">
@@ -199,7 +207,7 @@ function updateDefectsFeedUI(defects) {
             <span class="text-[10px] text-slate-400 font-mono bg-slate-800 px-1 py-0.5 rounded border border-slate-700">${defect.tipo_defeito}</span>
           </div>
           <div class="flex items-center justify-between text-[11px] text-slate-400">
-            <span>Lote #${defect.id_lote}</span>
+            <span>Lote #${defect.id_lote || '--'}</span>
             <span>${timeFormatted}</span>
           </div>
         </div>
@@ -218,21 +226,46 @@ function updateChartUI(dataPoints) {
   chartInstance.update();
 }
 
-// 7. Alternar Estado do Lote (Iniciar / Encerrar)
-async function toggleLote() {
-  const endpoint = currentLoteId ? `${API_BASE_URL}/lote/encerrar` : `${API_BASE_URL}/lote/iniciar`;
-  
-  try {
-    const response = await fetch(endpoint, { method: "POST" });
-    if (response.ok) {
-      fetchDashboardData();
-    } else {
-      alert("Erro ao alterar o estado do Lote.");
-    }
-  } catch (err) {
-    console.error("Erro na requisição:", err);
-  }
+// 7. Modal para visualização completa da carta defeituosa
+function abrirModalDefeito(index) {
+  const defect = currentDefects[index];
+  if (!defect) return;
+
+  const nomeTraduzido = traduzirDefeito(defect.tipo_defeito);
+  const confPercent = (defect.grau_confiabilidade * 100).toFixed(0);
+  const timeFormatted = new Date(defect.timestamp).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+  document.getElementById("modal-titulo").innerText = nomeTraduzido;
+  document.getElementById("modal-subtitulo").innerText = `Defeito detectado no Lote #${defect.id_lote || '--'}`;
+  document.getElementById("modal-img").src = defect.imagem;
+  document.getElementById("modal-tipo").innerText = defect.tipo_defeito;
+  document.getElementById("modal-confianca").innerText = `${confPercent}%`;
+  document.getElementById("modal-lote").innerText = `#${defect.id_lote || '--'}`;
+  document.getElementById("modal-horario").innerText = timeFormatted;
+
+  const modal = document.getElementById("modal-imagem");
+  modal.classList.remove("hidden");
+  modal.classList.add("flex");
+  document.body.style.overflow = "hidden";
+  lucide.createIcons();
 }
+
+function fecharModalDefeito(event) {
+  if (event && event.target && event.target.id !== "modal-imagem" && !event.target.closest("button")) {
+    return;
+  }
+  const modal = document.getElementById("modal-imagem");
+  modal.classList.add("hidden");
+  modal.classList.remove("flex");
+  document.body.style.overflow = "";
+}
+
+// Fechar modal ao pressionar ESC
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    fecharModalDefeito();
+  }
+});
 
 // 8. Indicador Visual de Conexão com o Servidor
 function setConnectionStatus(isOnline) {
