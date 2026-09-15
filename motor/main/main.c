@@ -30,8 +30,6 @@ static const char *TAG = "ESTEIRA";
 #define UART_BAUD_RATE  115200
 #define BUF_SIZE        1024
 
-/* Estado global do sistema e motor */
-static bool sys_on = false;
 /* Estado global do sistema, motor e alerta */
 static bool sys_on = false;
 static bool motor_ligado = false;
@@ -59,8 +57,20 @@ static void sinalizar(int num_pulsos)
 }
 
 /*
+ * Emite 1 pulso com duração configurável em ms (usado no DEFECT: 1000 ms)
+ */
+static void sinalizar_pulso_ms(int duracao_ms)
+{
+    gpio_set_level(GPIO_LED, 1);
+    gpio_set_level(GPIO_BUZZER, 1);
+    vTaskDelay(pdMS_TO_TICKS(duracao_ms));
+    gpio_set_level(GPIO_LED, 0);
+    gpio_set_level(GPIO_BUZZER, 0);
+}
+
+/*
  * Task de sinalização contínua de alerta.
- * Mantém a sequência de pulsos (500 ms ON / 500 ms OFF) até que ocorra uma intervenção.
+ * Mantém a sequência oscilante (500 ms ON / 500 ms OFF) até intervenção do operador.
  */
 static void alerta_task(void *arg)
 {
@@ -86,10 +96,24 @@ static void motor_set(bool ligar)
     ESP_LOGI(TAG, "Motor %s", motor_ligado ? "LIGADO" : "DESLIGADO");
 }
 
+static void system_shutdown(void)
+{
+    em_alerta = false;
+    sys_on = false;
+    motor_set(false);
+    ESP_LOGI(TAG, "Sistema DESLIGADO (SYS_OFF)");
+    const char *msg = "SYS_OFF\n";
+    uart_write_bytes(UART_PORT, msg, strlen(msg));
+    sinalizar(2); // 2 pulsos de 500 ms
+}
+
 static void system_toggle(void)
 {
-    // Qualquer intervenção via botoeira cancela o estado de alerta
-    em_alerta = false;
+    // Se estiver em alerta, o botão força o desligamento completo imediato
+    if (em_alerta) {
+        system_shutdown();
+        return;
+    }
 
     sys_on = !sys_on;
     if (sys_on) {
@@ -99,11 +123,7 @@ static void system_toggle(void)
         motor_set(true);
         sinalizar(1); // 1 pulso de 500 ms
     } else {
-        ESP_LOGI(TAG, "Sistema DESLIGADO (SYS_OFF)");
-        const char *msg = "SYS_OFF\n";
-        uart_write_bytes(UART_PORT, msg, strlen(msg));
-        motor_set(false);
-        sinalizar(2); // 2 pulsos de 500 ms
+        system_shutdown();
     }
 }
 
@@ -119,8 +139,7 @@ static void uart_init(void)
     };
     uart_driver_install(UART_PORT, BUF_SIZE * 2, 0, 0, NULL, 0);
     uart_param_config(UART_PORT, &uart_config);
-    uart_set_pin(UART_PORT, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-    uart_set_pin(UART_PORT, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+    uart_set_pin(UART_PORT, UART_TX_PIN, UART_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
 }
 
 static void gpio_config_init(void)
@@ -159,11 +178,6 @@ static void gpio_config_init(void)
  * o estado do motor a cada aperto válido, disparando a sinalização
  * de LED + buzzer correspondente.
  */
-/*
- * Task responsável por ler a botoeira com debounce e alternar (toggle)
- * o estado do motor a cada aperto válido, disparando a sinalização
- * de LED + buzzer correspondente.
- */
 static void botoeira_task(void *arg)
 {
     int nivel_estavel = 1;      // 1 = solto (pull-up), 0 = pressionado
@@ -174,7 +188,6 @@ static void botoeira_task(void *arg)
     while (1) {
         int nivel_atual = gpio_get_level(GPIO_BOTOEIRA);
 
-
         if (nivel_atual == nivel_anterior) {
             contador_estavel_ms += POLL_DELAY_MS;
         } else {
@@ -183,22 +196,17 @@ static void botoeira_task(void *arg)
         }
 
         // Sinal estável por tempo suficiente -> atualiza estado "debounced"
-        // Sinal estável por tempo suficiente -> atualiza estado "debounced"
         if (contador_estavel_ms >= DEBOUNCE_MS && nivel_atual != nivel_estavel) {
             nivel_estavel = nivel_atual;
 
-
             if (nivel_estavel == 0 && !aguardando_liberar) {
-                system_toggle();
                 system_toggle();
                 aguardando_liberar = true;
             } else if (nivel_estavel == 1) {
                 // Botão solto: libera para o próximo aperto
-                // Botão solto: libera para o próximo aperto
                 aguardando_liberar = false;
             }
         }
-
 
         vTaskDelay(pdMS_TO_TICKS(POLL_DELAY_MS));
     }
@@ -208,7 +216,6 @@ static void botoeira_task(void *arg)
 static void uart_rx_task(void *arg)
 {
     static uint8_t data[BUF_SIZE];
-    static uint8_t data[BUF_SIZE];
     while (1) {
         int len = uart_read_bytes(UART_PORT, data, BUF_SIZE - 1, pdMS_TO_TICKS(100));
         if (len > 0) {
@@ -217,22 +224,23 @@ static void uart_rx_task(void *arg)
             
             if (strstr((char*)data, "STOP") != NULL) {
                 ESP_LOGI(TAG, "Comando STOP recebido");
-                em_alerta = false; // Intervenção: cancela o alerta
-                sys_on = false;
                 motor_set(false);
-                sinalizar(2); // Esteira desligada
             }
             if (strstr((char*)data, "START") != NULL) {
                 ESP_LOGI(TAG, "Comando START recebido");
-                em_alerta = false; // Intervenção: cancela o alerta
-                sys_on = true;
-                motor_set(true);
-                sinalizar(1); // Esteira ligada
+                if (!em_alerta) {
+                    motor_set(true);
+                }
             }
             if (strstr((char*)data, "DEFECT") != NULL) {
                 ESP_LOGI(TAG, "Comando DEFECT recebido");
+                // Sinaliza defeito isolado: 1 pulso de 1000 ms sem travar a esteira em alerta contínuo
+                sinalizar_pulso_ms(1000);
+            }
+            if (strstr((char*)data, "ALERTA") != NULL) {
+                ESP_LOGI(TAG, "Comando ALERTA recebido (Controle de Danos)");
                 motor_set(false);
-                em_alerta = true; // Ativa o modo de alerta contínuo
+                em_alerta = true; // Ativa o modo de alerta contínuo oscilante
             }
         }
     }

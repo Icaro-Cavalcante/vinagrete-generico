@@ -35,7 +35,7 @@ class MotionDetector:
         roi_y_bounds=ROI_Y_BOUNDS,
         min_contour_area=MIN_CONTOUR_AREA,
         bg_subtractor_threshold=BG_SUBTRACTOR_THRESHOLD,
-        min_exit_time_sec=1.2,  # Tempo mínimo para ignorar re-disparos na saída
+        min_exit_time_sec=1.5,  # Tempo mínimo para ignorar re-disparos na saída
     ):
         self.roi_x_start = roi_x_bounds[0]
         self.roi_x_end = roi_x_bounds[1]
@@ -112,11 +112,11 @@ class MotionDetector:
             if time.time() - self.exit_start_time < self.min_exit_time_sec:
                 return False
 
-            # 2. Só retorna a SEARCHING se o item se afastou do centro (> 60px) OU sumiu por 5 frames seguidos
+            # 2. Só retorna a SEARCHING se o item se afastou em direção à saída (> 60px) OU sumiu da ROI
             if largest_contour is not None:
                 x, y, w_box, h_box = cv2.boundingRect(largest_contour)
                 cy = y + h_box // 2
-                if abs(cy - roi_center_y) > 60:
+                if cy > (roi_center_y + 60) or abs(cy - roi_center_y) > 80:
                     self.state = ItemState.SEARCHING
                     self.empty_frames_count = 0
             else:

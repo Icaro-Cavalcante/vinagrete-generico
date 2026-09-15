@@ -46,11 +46,11 @@ class CameraController:
             self._init_opencv()
 
     def _init_opencv(self):
-        # Pipeline GStreamer nativa da libcamera na RPi 5
+        # Pipeline GStreamer nativa da libcamera na RPi 5 forçando BGR para OpenCV
         gst_pipeline = (
             f"libcamerasrc ! "
             f"video/x-raw, width={self.resolution[0]}, height={self.resolution[1]}, framerate={self.framerate}/1 ! "
-            f"videoconvert ! appsink"
+            f"videoconvert ! video/x-raw, format=BGR ! appsink"
         )
         self.cap = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
         

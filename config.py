@@ -16,6 +16,9 @@ DEFECT_CLASSES = set(
 # Limiar de confiança para considerar defeito
 CONF_THRESHOLD = float(os.getenv("CONF_THRESHOLD", "0.5"))
 
+# Quantidade de defeitos consecutivos para disparar modo ALERTA (Controle de Danos)
+CONSECUTIVE_DEFECTS_ALERT = int(os.getenv("CONSECUTIVE_DEFECTS_ALERT", "3"))
+
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:////app/data/vinagrete.db")
 
 # Configurações de ROI (Região de Interesse) da esteira
