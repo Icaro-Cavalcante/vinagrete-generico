@@ -193,30 +193,31 @@ static void uart_rx_task(void *arg)
     static uint8_t data[BUF_SIZE];
     while (1) {
         int len = uart_read_bytes(UART_PORT, data, BUF_SIZE - 1, pdMS_TO_TICKS(100));
-        if (len > 0) {
-            data[len] = '\0';
-            ESP_LOGI(TAG, "UART Recebido: %s", (char*)data);
-            
-            if (strstr((char*)data, "STOP") != NULL) {
-                ESP_LOGI(TAG, "Comando STOP recebido");
-                em_alerta = false; // Intervenção: cancela o alerta
-                sys_on = false;
-                motor_set(false);
-                sinalizar(2); // Esteira desligada
-            }
-            if (strstr((char*)data, "START") != NULL) {
-                ESP_LOGI(TAG, "Comando START recebido");
-                em_alerta = false; // Intervenção: cancela o alerta
-                sys_on = true;
-                motor_set(true);
-                sinalizar(1); // Esteira ligada
-            }
-            if (strstr((char*)data, "DEFECT") != NULL) {
-                ESP_LOGI(TAG, "Comando DEFECT recebido");
-                motor_set(false);
-                em_alerta = true; // Ativa o modo de alerta contínuo
-            }
+        if (len <= 0) continue;
+
+        data[len] = '\0';
+        ESP_LOGI(TAG, "UART Recebido: %s", (char*)data);
+        
+        if (strstr((char*)data, "STOP") != NULL) {
+            ESP_LOGI(TAG, "Comando STOP recebido");
+            em_alerta = false; // Intervenção: cancela o alerta
+            sys_on = false;
+            motor_set(false);
+            sinalizar(2); // Esteira desligada
         }
+        if (strstr((char*)data, "START") != NULL) {
+            ESP_LOGI(TAG, "Comando START recebido");
+            em_alerta = false; // Intervenção: cancela o alerta
+            sys_on = true;
+            motor_set(true);
+            sinalizar(1); // Esteira ligada
+        }
+        if (strstr((char*)data, "DEFECT") != NULL) {
+            ESP_LOGI(TAG, "Comando DEFECT recebido");
+            motor_set(false);
+            em_alerta = true; // Ativa o modo de alerta contínuo
+        }
+        
     }
 }
 
