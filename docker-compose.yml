@@ -12,11 +12,13 @@ services:
       - ./data:/app/data
       - ./weights:/app/weights
       - ./inference:/app/inference
+      - ./backend:/app/backend
       - ./config.py:/app/config.py
     environment:
       - PYTHONUNBUFFERED=1
       - SERIAL_PORT=/dev/ttyUSB0
       - DATABASE_URL=sqlite:////app/data/vinagrete.db
+      - UPLOAD_DIR=/app/data/uploads
     restart: unless-stopped
 
   backend:
@@ -28,8 +30,10 @@ services:
       - "8000:8000"
     volumes:
       - ./data:/app/data
+      - ./backend:/app/backend
     environment:
       - DATABASE_URL=sqlite:////app/data/vinagrete.db
+      - UPLOAD_DIR=/app/data/uploads
     restart: unless-stopped
 
   frontend:
