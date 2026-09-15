@@ -40,7 +40,10 @@ import base64
 import os
 import uuid
 
-UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
+UPLOAD_DIR = os.getenv(
+    "UPLOAD_DIR",
+    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "uploads"),
+)
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
