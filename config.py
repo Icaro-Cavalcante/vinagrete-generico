@@ -13,8 +13,8 @@ DEFECT_CLASSES = set(
     if cls.strip()
 )
 
-# Limiar de confiança para considerar defeito
-CONF_THRESHOLD = float(os.getenv("CONF_THRESHOLD", "0.5"))
+# Limiar de confiança para considerar defeito (ajustável de 0.1 a 0.9)
+CONF_THRESHOLD = float(os.getenv("CONF_THRESHOLD", "0.25"))
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:////app/data/vinagrete.db")
 
@@ -26,6 +26,8 @@ CROP_TO_ROI = os.getenv("CROP_TO_ROI", "False").lower() in ("true", "1", "yes")
 CAMERA_INDEX = 0
 CAMERA_RESOLUTION = (1296, 972)
 CAMERA_FRAMERATE = 60
+# Rotação da câmera em graus (0, 90, 180, 270) para alinhar a orientação das cartas com o modelo YOLO
+CAMERA_ROTATION = int(os.getenv("CAMERA_ROTATION", "270"))
 
 # MotionROI settings
 ROI_DIMENSIONS = (400, 400) # (width, height)

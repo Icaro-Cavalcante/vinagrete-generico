@@ -48,13 +48,14 @@ class YOLOInference:
 
         # Suporte a modelos de classificação (YOLO-cls: good vs miscut)
         if results.probs is not None:
-            cls_id = int(results.probs.top1)
-            class_name = str(self.model.names[cls_id])
-            conf = float(results.probs.top1conf)
-
-            if class_name.lower() in defect_classes_lower and conf >= self.conf_threshold:
-                defects_found.append(class_name)
-                max_conf = conf
+            probs_data = results.probs.data.cpu().numpy()
+            for cls_id, cls_name in self.model.names.items():
+                cls_str = str(cls_name)
+                if cls_str.lower() in defect_classes_lower:
+                    defect_prob = float(probs_data[cls_id])
+                    if defect_prob >= self.conf_threshold:
+                        defects_found.append(cls_str)
+                        max_conf = max(max_conf, defect_prob)
 
         # Suporte a modelos de detecção de objetos (YOLO-det com bounding boxes)
         elif results.boxes is not None and len(results.boxes) > 0:
