@@ -66,8 +66,46 @@ class CameraController:
         encerrar a aplicação.
         """
         if self.use_picam2 and self.picam2:
-            rgb_frame = self.picam2.capture_array("main")
-            return rgb_frame[:, :, ::-1]
+            try:
+                # NOTA: por herança histórica do libcamera, o formato "RGB888"
+                # do Picamera2 já entrega os bytes em ordem BGR na memória
+                # (ver docs oficiais do Picamera2, seção "Image formats").
+                # Fazer [:, :, ::-1] aqui inverte de novo e devolve RGB,
+                # trocando os canais de cor na saída (era a causa da câmera
+                # aparecer com cores erradas). Retornamos o array como veio.
+                return self.picam2.capture_array("main")
+            except Exception as e:
+                self.consecutive_failures += 1
+                print(
+                    f"[CÂMERA] Aviso: Falha na captura via Picamera2 ({self.consecutive_failures}/{self.max_failures}): {e}"
+                )
+                if self.consecutive_failures >= self.max_failures:
+                    print(
+                        "[CÂMERA] Múltiplas falhas detectadas. Reinicializando o Picamera2..."
+                    )
+                    self.consecutive_failures = 0
+                    try:
+                        self.picam2.stop()
+                        self.picam2.close()
+                    except Exception:
+                        pass
+                    self.use_picam2 = False
+                    self.picam2 = None
+                    try:
+                        from picamera2 import Picamera2
+
+                        self.picam2 = Picamera2()
+                        config = self.picam2.create_video_configuration(
+                            main={"size": self.resolution, "format": "RGB888"},
+                            controls={"FrameRate": self.framerate},
+                        )
+                        self.picam2.configure(config)
+                        self.picam2.start()
+                        self.use_picam2 = True
+                    except Exception as e2:
+                        print(f"[CÂMERA] Falha ao reinicializar Picamera2 ({e2}). Tentando OpenCV V4L2...")
+                        self._init_opencv()
+                return None
 
         if self.cap is None or not self.cap.isOpened():
             self._init_opencv()

@@ -1,7 +1,21 @@
 // Configuração da URL da API Backend FastAPI
-const API_BASE_URL = window.location.port === "80" || window.location.port === ""
-  ? "/api"
-  : "http://localhost:8000/api";
+const IS_PROXIED = window.location.port === "80" || window.location.port === "";
+const API_BASE_URL = IS_PROXIED ? "/api" : "http://localhost:8000/api";
+
+// Origem usada para montar a URL das imagens de defeito (campo "imagem" retorna
+// um caminho relativo, ex: "/uploads/defeito_xxx.jpg"). Quando o front não está
+// atrás do proxy do Nginx (docker-compose), esse caminho relativo é resolvido
+// contra a origem da própria página em vez do backend — e a imagem nunca
+// carrega, mesmo estando salva corretamente no servidor.
+const IMAGE_BASE_URL = IS_PROXIED ? "" : "http://localhost:8000";
+
+function resolveImageUrl(caminho) {
+  if (!caminho) return "";
+  if (caminho.startsWith("http://") || caminho.startsWith("https://") || caminho.startsWith("data:")) {
+    return caminho;
+  }
+  return `${IMAGE_BASE_URL}${caminho}`;
+}
 
 // Dicionário de Tradução das Classes do Modelo de Visão Computacional
 const DEFEITOS_TRADUCAO = {
@@ -190,7 +204,7 @@ function updateDefectsFeedUI(defects) {
     const cardHtml = `
       <div class="bg-slate-900 border border-slate-700/60 rounded-lg overflow-hidden group hover:border-slate-500 transition">
         <div class="relative h-28 bg-slate-950 flex items-center justify-center overflow-hidden">
-          <img src="${defect.imagem}" alt="${nomeTraduzido}" class="object-cover w-full h-full group-hover:scale-105 transition duration-300" onerror="this.src='https://placehold.co/300x200/0f172a/94a3b8?text=Sem+Imagem'">
+          <img src="${resolveImageUrl(defect.imagem)}" alt="${nomeTraduzido}" class="object-cover w-full h-full group-hover:scale-105 transition duration-300" onerror="this.src='https://placehold.co/300x200/0f172a/94a3b8?text=Sem+Imagem'">
           <span class="absolute top-2 right-2 badge-confidence">${confPercent}% Conf.</span>
         </div>
         <div class="p-2.5">
