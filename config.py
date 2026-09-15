@@ -13,8 +13,8 @@ DEFECT_CLASSES = set(
     if cls.strip()
 )
 
-# Limiar de confiança para considerar defeito
-CONF_THRESHOLD = float(os.getenv("CONF_THRESHOLD", "0.5"))
+# Limiar de confiança para considerar defeito (ajustável de 0.1 a 0.9)
+CONF_THRESHOLD = float(os.getenv("CONF_THRESHOLD", "0.25"))
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:////app/data/vinagrete.db")
 
