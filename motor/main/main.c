@@ -30,9 +30,18 @@ static const char *TAG = "ESTEIRA";
 #define UART_BAUD_RATE  115200
 #define BUF_SIZE        1024
 
+/* ---------- Comandos Recebidos (RX: Raspberry Pi -> ESP32) ---------- */
+#define UART_CMD_STOP       "STOP"
+#define UART_CMD_START      "START"
+#define UART_CMD_ALERT      "ALERT"
+
+/* ---------- Mensagens Enviadas (TX: ESP32 -> Raspberry Pi) ---------- */
+#define UART_MSG_SYS_ON     "SYS_ON\n"
+#define UART_MSG_SYS_OFF    "SYS_OFF\n"
+
 /* Estado global do sistema, motor e alerta */
-static bool sys_on = false;
-static bool motor_ligado = false;
+static bool sys_on             = false;
+static bool motor_ligado       = false;
 static volatile bool em_alerta = false; // Indica se o alerta contínuo está ativo
 
 /*
@@ -92,13 +101,13 @@ static void system_toggle(void)
     sys_on = !sys_on;
     if (sys_on) {
         ESP_LOGI(TAG, "Sistema LIGADO (SYS_ON)");
-        const char *msg = "SYS_ON\n";
+        const char *msg = UART_MSG_SYS_ON;
         uart_write_bytes(UART_PORT, msg, strlen(msg));
         motor_set(true);
         sinalizar(1); // 1 pulso de 500 ms
     } else {
         ESP_LOGI(TAG, "Sistema DESLIGADO (SYS_OFF)");
-        const char *msg = "SYS_OFF\n";
+        const char *msg = UART_MSG_SYS_OFF;
         uart_write_bytes(UART_PORT, msg, strlen(msg));
         motor_set(false);
         sinalizar(2); // 2 pulsos de 500 ms
@@ -198,22 +207,24 @@ static void uart_rx_task(void *arg)
         data[len] = '\0';
         ESP_LOGI(TAG, "UART Recebido: %s", (char*)data);
         
-        if (strstr((char*)data, "STOP") != NULL) {
+        if (strstr((char*)data, UART_CMD_STOP) != NULL) {
             ESP_LOGI(TAG, "Comando STOP recebido");
             em_alerta = false; // Intervenção: cancela o alerta
             sys_on = false;
             motor_set(false);
             sinalizar(2); // Esteira desligada
         }
-        if (strstr((char*)data, "START") != NULL) {
+
+        if (strstr((char*)data, UART_CMD_START) != NULL) {
             ESP_LOGI(TAG, "Comando START recebido");
             em_alerta = false; // Intervenção: cancela o alerta
             sys_on = true;
             motor_set(true);
             sinalizar(1); // Esteira ligada
         }
-        if (strstr((char*)data, "DEFECT") != NULL) {
-            ESP_LOGI(TAG, "Comando DEFECT recebido");
+        
+        if (strstr((char*)data, UART_CMD_ALERT) != NULL) {
+            ESP_LOGI(TAG, "Comando ALERT recebido");
             motor_set(false);
             em_alerta = true; // Ativa o modo de alerta contínuo
         }
