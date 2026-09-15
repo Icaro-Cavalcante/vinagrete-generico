@@ -32,3 +32,24 @@
 .badge-confidence {
   @apply text-[10px] font-bold px-2 py-0.5 rounded-full backdrop-blur-md bg-slate-950/70 border border-slate-700/50 text-amber-300;
 }
+
+/* Correção de tonalidade de cor invertida (swap de canais BGR -> RGB) */
+.card-img-fix {
+  filter: url(#color-fix-bgr);
+}
+
+/* Transição do modal */
+#modal-imagem.flex {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

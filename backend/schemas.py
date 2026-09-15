@@ -44,6 +44,12 @@ class DefeitoPorHorario(BaseModel):
     quantidade: int
 
 
+class DefeitoPorLote(BaseModel):
+    lote: str
+    cartas_defeituosas: int
+    cartas_totais: int
+
+
 class DefeitoOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -58,7 +64,8 @@ class DefeitoOut(BaseModel):
 class DashboardSummary(BaseModel):
     lote: Optional[LoteOut] = None
     sistema: SistemaOut
-    defeitos_por_horario: list[DefeitoPorHorario]
+    defeitos_por_horario: list[DefeitoPorHorario] = []
+    defeitos_por_lote: list[DefeitoPorLote] = []
     ultimos_defeitos: list[DefeitoOut]
 
 

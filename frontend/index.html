@@ -115,13 +115,13 @@
     <!-- PAINEL CENTRAL: GRÁFICO E ACUMULADO DO SISTEMA -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       
-      <!-- Gráfico de Ocorrências no Lote (2 Colunas) -->
+      <!-- Gráfico de Erros por Lote (2 Colunas) -->
       <div class="card p-5 lg:col-span-2 flex flex-col justify-between">
         <div class="flex justify-between items-center mb-4">
           <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
-            <i data-lucide="activity" class="w-4 h-4 text-indigo-400"></i> Defeitos no Tempo (Lote Ativo)
+            <i data-lucide="bar-chart-3" class="w-4 h-4 text-indigo-400"></i> Erros por Lote
           </h3>
-          <span class="text-xs text-slate-400">Atualizado a cada 2s</span>
+          <span class="text-xs text-slate-400">Cartas Defeituosas por Lote</span>
         </div>
         <div class="h-56 relative w-full">
           <canvas id="chart-defetos"></canvas>
@@ -167,7 +167,7 @@
         <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
           <i data-lucide="alert-circle" class="w-4 h-4 text-rose-400"></i> Últimas Cartas Defeituosas Detectadas
         </h3>
-        <span class="text-xs text-slate-400">Mostrando até 6 registros</span>
+        <span class="text-xs text-slate-400">Clique em uma carta para ver detalhes e tela cheia</span>
       </div>
 
       <!-- Grid de Cards com Foto e Metadados -->
@@ -177,6 +177,70 @@
     </section>
 
   </main>
+
+  <!-- Filtro SVG para correção de tonalidade de cor invertida (swap de canais BGR -> RGB) -->
+  <svg class="hidden" style="position: absolute; width: 0; height: 0; pointer-events: none;" aria-hidden="true">
+    <filter id="color-fix-bgr">
+      <feColorMatrix type="matrix" values="
+        0 0 1 0 0
+        0 1 0 0 0
+        1 0 0 0 0
+        0 0 0 1 0" />
+    </filter>
+  </svg>
+
+  <!-- MODAL DE VISUALIZAÇÃO EM TELA CHEIA COM DETALHES -->
+  <div id="modal-imagem" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 hidden items-center justify-center p-4 transition-all duration-300" onclick="fecharModalDefeito(event)">
+    <div id="modal-container" class="bg-slate-900 border border-slate-700 rounded-2xl max-w-4xl w-full overflow-hidden shadow-2xl flex flex-col max-h-[92vh]" onclick="event.stopPropagation()">
+      <!-- Header do Modal -->
+      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
+        <div class="flex items-center gap-3">
+          <div class="p-2.5 bg-rose-500/20 text-rose-400 rounded-xl border border-rose-500/30">
+            <i data-lucide="alert-circle" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h4 id="modal-titulo" class="text-base font-bold text-white">Corte Desalinhado (Miscut)</h4>
+            <p id="modal-subtitulo" class="text-xs text-slate-400">Inspeção detalhada de controle de qualidade</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <!-- Botão Tela Cheia -->
+          <button onclick="toggleTelaCheia()" class="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition" title="Alternar Tela Cheia">
+            <i data-lucide="maximize-2" id="icon-fullscreen" class="w-5 h-5"></i>
+          </button>
+          <!-- Botão Fechar -->
+          <button onclick="fecharModalDefeito()" class="p-2 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition" title="Fechar (ESC)">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Imagem em Alta Resolução com correção de cor -->
+      <div class="p-4 bg-slate-950 flex items-center justify-center overflow-auto flex-1 min-h-[300px] max-h-[65vh]">
+        <img id="modal-img" src="" alt="Carta Defeituosa" class="card-img-fix max-h-[60vh] max-w-full object-contain rounded-lg border border-slate-800/80 shadow-xl transition-transform duration-300 hover:scale-105">
+      </div>
+
+      <!-- Painel Inferior de Detalhes -->
+      <div class="px-6 py-4 bg-slate-900 border-t border-slate-800 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+        <div class="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800">
+          <span class="text-slate-400 block mb-0.5">Defeito:</span>
+          <span id="modal-tipo" class="font-bold text-rose-400 font-mono text-sm">--</span>
+        </div>
+        <div class="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800">
+          <span class="text-slate-400 block mb-0.5">Confiança da IA:</span>
+          <span id="modal-confianca" class="font-bold text-amber-300 text-sm">--%</span>
+        </div>
+        <div class="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800">
+          <span class="text-slate-400 block mb-0.5">Lote:</span>
+          <span id="modal-lote" class="font-bold text-indigo-300 font-mono text-sm">#--</span>
+        </div>
+        <div class="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800">
+          <span class="text-slate-400 block mb-0.5">Data/Horário:</span>
+          <span id="modal-horario" class="font-bold text-slate-200 font-mono text-sm">--:--:--</span>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- RODAPÉ -->
   <footer class="bg-slate-950 border-t border-slate-800 text-center py-3 text-xs text-slate-500">
