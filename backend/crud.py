@@ -10,7 +10,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .models import Defeito, Lote, SistemaEstado
-from .schemas import DefeitoPorHorario, InspecaoRegistrar
+from .schemas import DefeitoPorHorario, DefeitoPorLote, InspecaoRegistrar
 
 
 # ──────────────────────────────────────
@@ -214,9 +214,21 @@ def obter_dashboard_summary(db: Session) -> dict:
         .all()
     )
 
+    # --- Defeitos por lote (X: Lote, Y: Cartas Defeituosas) ---
+    lotes_db = db.query(Lote).order_by(Lote.id.asc()).all()
+    defeitos_por_lote = [
+        DefeitoPorLote(
+            lote=f"Lote #{l.id}",
+            cartas_defeituosas=l.cartas_defeituosas,
+            cartas_totais=l.cartas_totais,
+        )
+        for l in lotes_db
+    ]
+
     return {
         "lote": lote,
         "sistema": estado,
         "defeitos_por_horario": defeitos_horario,
+        "defeitos_por_lote": defeitos_por_lote,
         "ultimos_defeitos": ultimos,
     }

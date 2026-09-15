@@ -33,6 +33,7 @@ function traduzirDefeito(tipo) {
 // Estado Global da Aplicação
 let chartInstance = null;
 let currentLoteId = null;
+let currentDefects = [];
 
 // Inicialização da Aplicação ao Carregar a Página
 document.addEventListener("DOMContentLoaded", () => {
@@ -44,18 +45,20 @@ document.addEventListener("DOMContentLoaded", () => {
   setInterval(fetchDashboardData, 2000);
 });
 
-// 1. Inicialização do Chart.js para Defeitos por Hora/Intervalo
+// 1. Inicialização do Chart.js para Erros por Lote (X: Lote, Y: Cartas Defeituosas)
 function initChart() {
-  const ctx = document.getElementById("chart-defetos").getContext("2d");
+  const canvas = document.getElementById("chart-defetos");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
   
   chartInstance = new Chart(ctx, {
     type: "bar",
     data: {
-      labels: [], // Intervalos de Horas (ex: "14:10", "14:15")
+      labels: [], // Nomes dos Lotes (ex: "Lote #1", "Lote #2")
       datasets: [{
         label: "Cartas Defeituosas",
         data: [],
-        backgroundColor: "rgba(244, 63, 94, 0.6)", // Rose Tailwind
+        backgroundColor: "rgba(244, 63, 94, 0.7)", // Rose Tailwind
         borderColor: "rgba(244, 63, 94, 1)",
         borderWidth: 1.5,
         borderRadius: 4
@@ -65,17 +68,39 @@ function initChart() {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { display: false }
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: function(context) {
+              return context[0].label;
+            },
+            label: function(context) {
+              return ` ${context.raw} cartas defeituosas`;
+            }
+          }
+        }
       },
       scales: {
         x: {
           grid: { color: "rgba(255, 255, 255, 0.05)" },
-          ticks: { color: "#94a3b8", font: { size: 11 } }
+          ticks: { color: "#94a3b8", font: { size: 11 } },
+          title: {
+            display: true,
+            text: "Lote",
+            color: "#64748b",
+            font: { size: 11, weight: "bold" }
+          }
         },
         y: {
           beginAtZero: true,
           grid: { color: "rgba(255, 255, 255, 0.05)" },
-          ticks: { color: "#94a3b8", precision: 0, font: { size: 11 } }
+          ticks: { color: "#94a3b8", precision: 0, font: { size: 11 } },
+          title: {
+            display: true,
+            text: "Cartas Defeituosas",
+            color: "#64748b",
+            font: { size: 11, weight: "bold" }
+          }
         }
       }
     }
@@ -93,7 +118,7 @@ async function fetchDashboardData() {
     updateLoteUI(data.lote);
     updateSistemaUI(data.sistema);
     updateDefectsFeedUI(data.ultimos_defeitos);
-    updateChartUI(data.defeitos_por_horario);
+    updateChartUI(data.defeitos_por_lote);
     
     setConnectionStatus(true);
   } catch (error) {
@@ -171,27 +196,31 @@ function updateSistemaUI(sistema) {
 // 5. Renderiza o Feed de Fotos de Cartas Defeituosas
 function updateDefectsFeedUI(defects) {
   const container = document.getElementById("defects-feed");
+  if (!container) return;
   container.innerHTML = "";
+  currentDefects = defects || [];
 
   if (!defects || defects.length === 0) {
     container.innerHTML = `
       <div class="col-span-full py-8 text-center text-slate-500 text-xs">
-        Nenhum defeito registrado no lote ativo.
+        Nenhum defeito registrado no sistema.
       </div>`;
     return;
   }
 
-  defects.forEach(defect => {
+  defects.forEach((defect, index) => {
     const timeFormatted = new Date(defect.timestamp).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    const confPercent = (defect.grau_confiabilidade * 100).toFixed(0);
-
+    const confPercent = defect.grau_confiabilidade != null ? (defect.grau_confiabilidade * 100).toFixed(0) : "--";
     const nomeTraduzido = traduzirDefeito(defect.tipo_defeito);
 
     const cardHtml = `
-      <div class="bg-slate-900 border border-slate-700/60 rounded-lg overflow-hidden group hover:border-slate-500 transition">
+      <div onclick="abrirModalDefeito(${index})" class="bg-slate-900 border border-slate-700/60 rounded-lg overflow-hidden group hover:border-indigo-500 hover:scale-[1.02] cursor-pointer transition duration-200 shadow-md">
         <div class="relative h-28 bg-slate-950 flex items-center justify-center overflow-hidden">
-          <img src="${defect.imagem}" alt="${nomeTraduzido}" class="object-cover w-full h-full group-hover:scale-105 transition duration-300" onerror="this.src='https://placehold.co/300x200/0f172a/94a3b8?text=Sem+Imagem'">
+          <img src="${defect.imagem}" alt="${nomeTraduzido}" class="card-img-fix object-cover w-full h-full group-hover:scale-105 transition duration-300" onerror="this.src='https://placehold.co/300x200/0f172a/94a3b8?text=Sem+Imagem'">
           <span class="absolute top-2 right-2 badge-confidence">${confPercent}% Conf.</span>
+          <div class="absolute inset-0 bg-indigo-600/0 group-hover:bg-indigo-600/15 flex items-center justify-center transition">
+            <span class="opacity-0 group-hover:opacity-100 bg-slate-900/90 text-white text-[10px] font-semibold px-2 py-1 rounded backdrop-blur border border-slate-700 transition">Ver Detalhes</span>
+          </div>
         </div>
         <div class="p-2.5">
           <div class="flex items-center justify-between mb-1">
@@ -199,7 +228,7 @@ function updateDefectsFeedUI(defects) {
             <span class="text-[10px] text-slate-400 font-mono bg-slate-800 px-1 py-0.5 rounded border border-slate-700">${defect.tipo_defeito}</span>
           </div>
           <div class="flex items-center justify-between text-[11px] text-slate-400">
-            <span>Lote #${defect.id_lote}</span>
+            <span>Lote #${defect.id_lote || '--'}</span>
             <span>${timeFormatted}</span>
           </div>
         </div>
@@ -209,16 +238,110 @@ function updateDefectsFeedUI(defects) {
   });
 }
 
-// 6. Atualiza os Dados do Gráfico
-function updateChartUI(dataPoints) {
-  if (!chartInstance || !dataPoints) return;
+// 6. Atualiza os Dados do Gráfico de Erros por Lote (X: Lote, Y: Cartas Defeituosas)
+function updateChartUI(defeitosPorLote) {
+  if (!chartInstance) return;
 
-  chartInstance.data.labels = dataPoints.map(p => p.horario);
-  chartInstance.data.datasets[0].data = dataPoints.map(p => p.quantidade);
+  if (Array.isArray(defeitosPorLote) && defeitosPorLote.length > 0) {
+    chartInstance.data.labels = defeitosPorLote.map(d => d.lote || `Lote #${d.id}`);
+    chartInstance.data.datasets[0].data = defeitosPorLote.map(d => d.cartas_defeituosas || 0);
+  } else {
+    chartInstance.data.labels = ["Nenhum Lote"];
+    chartInstance.data.datasets[0].data = [0];
+  }
   chartInstance.update();
 }
 
-// 7. Alternar Estado do Lote (Iniciar / Encerrar)
+// 7. Modal de visualização completa da carta defeituosa e tela cheia
+function abrirModalDefeito(index) {
+  const defect = currentDefects[index];
+  if (!defect) return;
+
+  const nomeTraduzido = traduzirDefeito(defect.tipo_defeito);
+  const confPercent = defect.grau_confiabilidade != null ? (defect.grau_confiabilidade * 100).toFixed(0) : "--";
+  const timeFormatted = new Date(defect.timestamp).toLocaleString("pt-BR", {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+
+  document.getElementById("modal-titulo").innerText = nomeTraduzido;
+  document.getElementById("modal-subtitulo").innerText = `Defeito detectado no Lote #${defect.id_lote || '--'}`;
+  document.getElementById("modal-img").src = defect.imagem;
+  document.getElementById("modal-tipo").innerText = defect.tipo_defeito;
+  document.getElementById("modal-confianca").innerText = `${confPercent}%`;
+  document.getElementById("modal-lote").innerText = `#${defect.id_lote || '--'}`;
+  document.getElementById("modal-horario").innerText = timeFormatted;
+
+  const modal = document.getElementById("modal-imagem");
+  modal.classList.remove("hidden");
+  modal.classList.add("flex");
+  document.body.style.overflow = "hidden";
+  lucide.createIcons();
+}
+
+function fecharModalDefeito(event) {
+  if (event && event.target && event.target.id !== "modal-imagem" && !event.target.closest("button")) {
+    return;
+  }
+  if (document.fullscreenElement || document.webkitFullscreenElement) {
+    if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+  }
+  const modal = document.getElementById("modal-imagem");
+  modal.classList.add("hidden");
+  modal.classList.remove("flex");
+  document.body.style.overflow = "";
+}
+
+function toggleTelaCheia() {
+  const container = document.getElementById("modal-container");
+  const icon = document.getElementById("icon-fullscreen");
+  
+  const isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+
+  if (!isFullscreen) {
+    const requestFs = container.requestFullscreen || container.webkitRequestFullscreen || container.mozRequestFullScreen || container.msRequestFullscreen;
+    if (requestFs) {
+      requestFs.call(container).then(() => {
+        if (icon) icon.setAttribute("data-lucide", "minimize-2");
+        lucide.createIcons();
+      }).catch(err => console.error("Erro ao entrar em tela cheia:", err));
+    }
+  } else {
+    const exitFs = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+    if (exitFs) {
+      exitFs.call(document).then(() => {
+        if (icon) icon.setAttribute("data-lucide", "maximize-2");
+        lucide.createIcons();
+      }).catch(err => console.error("Erro ao sair da tela cheia:", err));
+    }
+  }
+}
+
+// Evento do navegador ao alternar tela cheia
+document.addEventListener("fullscreenchange", () => {
+  const icon = document.getElementById("icon-fullscreen");
+  if (!icon) return;
+  if (document.fullscreenElement) {
+    icon.setAttribute("data-lucide", "minimize-2");
+  } else {
+    icon.setAttribute("data-lucide", "maximize-2");
+  }
+  lucide.createIcons();
+});
+
+// Fechar modal ao pressionar ESC
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    fecharModalDefeito();
+  }
+});
+
+// 8. Alternar Estado do Lote (Iniciar / Encerrar)
 async function toggleLote() {
   const endpoint = currentLoteId ? `${API_BASE_URL}/lote/encerrar` : `${API_BASE_URL}/lote/iniciar`;
   
@@ -234,7 +357,7 @@ async function toggleLote() {
   }
 }
 
-// 8. Indicador Visual de Conexão com o Servidor
+// 9. Indicador Visual de Conexão com o Servidor
 function setConnectionStatus(isOnline) {
   const indicator = document.getElementById("status-indicator");
   const text = document.getElementById("status-text");
@@ -249,3 +372,10 @@ function setConnectionStatus(isOnline) {
     text.className = "text-xs text-rose-400 font-medium";
   }
 }
+
+// Expor funções globais no window
+window.abrirModalDefeito = abrirModalDefeito;
+window.fecharModalDefeito = fecharModalDefeito;
+window.toggleTelaCheia = toggleTelaCheia;
+window.toggleLote = toggleLote;
+window.traduzirDefeito = traduzirDefeito;
